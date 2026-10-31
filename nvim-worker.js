@@ -4,11 +4,28 @@ import {
   WASIProcExit,
   Directory,
   File,
+  OpenFile,
+  OpenDirectory,
   PreopenDirectory,
   Fd,
 } from "https://unpkg.com/@bjorn3/browser_wasi_shim@0.4.2/dist/index.js";
 import { gunzipSync } from "https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm";
 import { Decoder, Ext } from "./msgpack.js?v9";
+
+// Grant full rights so WASI libc allows write, open, create, and stat operations
+OpenFile.prototype.fd_fdstat_get = function () {
+  const fdstat = new wasi.Fdstat(wasi.FILETYPE_REGULAR_FILE, 0);
+  fdstat.fs_rights_base = 0x1fffffffffffffffn;
+  fdstat.fs_rights_inherited = 0x1fffffffffffffffn;
+  return { ret: wasi.ERRNO_SUCCESS, fdstat };
+};
+
+OpenDirectory.prototype.fd_fdstat_get = function () {
+  const fdstat = new wasi.Fdstat(wasi.FILETYPE_DIRECTORY, 0);
+  fdstat.fs_rights_base = 0x1fffffffffffffffn;
+  fdstat.fs_rights_inherited = 0x1fffffffffffffffn;
+  return { ret: wasi.ERRNO_SUCCESS, fdstat };
+};
 
 let uiState = null;
 let rpcDecoder = null;
@@ -161,8 +178,10 @@ async function startNvim({ cols, rows, assetVersion }) {
   const preopen = new RootedPreopenDirectory("nvim", fsRoot.contents);
   const tmp = fsRoot.contents.get("tmp")?.contents || new Map();
   const preopenTmp = new RootedPreopenDirectory("tmp", tmp);
+  const preopenDot = new RootedPreopenDirectory(".", fsRoot.contents);
+  const preopenRoot = new RootedPreopenDirectory("/", fsRoot.contents);
 
-  const args = ["nvim", "--embed", "-u", "NORC", "--noplugin", "-i", "NONE", "-n"];
+  const args = ["nvim", "--embed", "-u", "NORC", "--noplugin", "-i", "NONE", "-n", "path.cpp"];
   const env = [
     "VIMRUNTIME=/nvim/runtime",
     "HOME=/nvim/home",
@@ -174,13 +193,15 @@ async function startNvim({ cols, rows, assetVersion }) {
     "TMPDIR=/nvim/tmp",
   ];
 
-  activeWasi = new WASI(args, env, [stdinFd, stdoutFd, stderrFd, preopen, preopenTmp], { debug: false });
+  activeWasi = new WASI(args, env, [stdinFd, stdoutFd, stderrFd, preopen, preopenTmp, preopenDot, preopenRoot], { debug: false });
   activeWasi.fds[0] = stdinFd;
   activeWasi.fds[1] = stdoutFd;
   activeWasi.fds[2] = stderrFd;
   activeWasi.fds[3] = preopen;
   activeWasi.fds[4] = preopenTmp;
-  activeWasi.preopens = { "/nvim": preopen, "/tmp": preopenTmp };
+  activeWasi.fds[5] = preopenDot;
+  activeWasi.fds[6] = preopenRoot;
+  activeWasi.preopens = { "/nvim": preopen, "/tmp": preopenTmp, ".": preopenDot, "/": preopenRoot };
 
   const envImports = makeEnv(() => activeWasi.wasiImport.proc_exit(1));
   const wasiImports = { ...activeWasi.wasiImport };
@@ -946,6 +967,16 @@ function buildFs(entries) {
   ensureDir(root, "home/.config");
   ensureDir(root, "home/.local/share");
   ensureDir(root, "home/.local/state");
+  const starterCode = `#include <rihla.hpp>
+#include <cmath>
+
+void path() {
+    // Reach the target along the meridian
+    // Standard math functions like sin(), cos(), pow() are available
+    forward(M_PI / 2.0);
+}
+`;
+  root.contents.set("path.cpp", new File(new TextEncoder().encode(starterCode)));
 
   return root;
 }
@@ -984,13 +1015,23 @@ function makeEnv(procExit) {
 }
 
 class RootedPreopenDirectory extends PreopenDirectory {
-  #strip(path) { return path.replace(/^\/+/, ""); }
-  path_open(dirflags, path_str, ...rest) { return super.path_open(dirflags, this.#strip(path_str), ...rest); }
+  #strip(path) { return (path || "").replace(/^\/+/, ""); }
+  fd_fdstat_get() {
+    const fdstat = new wasi.Fdstat(wasi.FILETYPE_DIRECTORY, 0);
+    fdstat.fs_rights_base = 0x1fffffffffffffffn;
+    fdstat.fs_rights_inherited = 0x1fffffffffffffffn;
+    return { ret: wasi.ERRNO_SUCCESS, fdstat };
+  }
+  path_open(dirflags, path_str, oflags, fs_rights_base, fs_rights_inherited, fd_flags) {
+    return super.path_open(dirflags, this.#strip(path_str), oflags, fs_rights_base, fs_rights_inherited, fd_flags);
+  }
   path_filestat_get(flags, path_str) { return super.path_filestat_get(flags, this.#strip(path_str)); }
   path_create_directory(path_str) { return super.path_create_directory(this.#strip(path_str)); }
+  path_unlink(path_str) { return super.path_unlink(this.#strip(path_str)); }
   path_unlink_file(path_str) { return super.path_unlink_file(this.#strip(path_str)); }
   path_remove_directory(path_str) { return super.path_remove_directory(this.#strip(path_str)); }
   path_link(path_str, inode, allow_dir) { return super.path_link(this.#strip(path_str), inode, allow_dir); }
+  path_lookup(path_str, dirflags) { return super.path_lookup(this.#strip(path_str), dirflags); }
   path_readlink(path_str) { return super.path_readlink(this.#strip(path_str)); }
   path_symlink(old_path, new_path) { return super.path_symlink(this.#strip(old_path), this.#strip(new_path)); }
 }

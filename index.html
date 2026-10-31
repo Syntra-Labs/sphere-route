@@ -464,16 +464,19 @@ body.is-resizing canvas#sky {
   Both bare `pow(...)` and `std::pow(...)` namespaces are supported.
 
 ==============================================================================
-3. GENUINE NEOVIM WEBASSEMBLY                                     *neovim*
+3. CUSTOM KEYBINDINGS & EX COMMANDS                               *keybindings*
 
-  Running native compiled Neovim WebAssembly via WASI/Emscripten.
+  Spherical Path execution uses non-colliding, standard Neovim idioms:
 
-  :w, :write               Compile and execute the path on the sphere.
-  :n, :next                Advance to the next waypoint (if verified).
-  :p, :prev                Navigate back to the previous waypoint.
-  :h, :help                Open this reference manual buffer.
-  :q                       Close this reference manual buffer.
-  <Ctrl-Enter>             Execute path without leaving Insert mode.
+  :Run, :R                 Compile and execute the path on the sphere.
+  <Space>r, <leader>r      Compile and execute (Normal mode).
+  <F5>                     Compile and execute (Normal & Insert mode).
+  <Ctrl-Enter>             Compile and execute without leaving Insert mode.
+  :Manual, <Space>m, <F1>  Open this reference manual buffer.
+  :Next, <Space>n          Advance to the next waypoint (if verified).
+  :Prev, <Space>p          Navigate back to the previous waypoint.
+
+  All official Neovim commands (:w, :help, :q, hjkl, motions) remain standard.
 
 ==============================================================================
 4. C++ CONTROL FLOW & SYNTAX                                        *syntax*
@@ -499,8 +502,8 @@ body.is-resizing canvas#sky {
       <div class="nvim-file"><b>path.cpp</b> [C++] · Neovim WASM</div>
       <div class="nvim-info">
         <span id="nvim-cursor">ln 1, col 1</span>
-        <button class="nvim-btn" id="help-btn">:help</button>
-        <button class="nvim-btn" id="run-trigger">:w</button>
+        <button class="nvim-btn" id="help-btn">:Manual (&lt;Space&gt;m)</button>
+        <button class="nvim-btn" id="run-trigger">&#9654; :Run (&lt;Space&gt;r | &lt;F5&gt;)</button>
       </div>
     </div>
   </div>
@@ -1015,51 +1018,7 @@ function sendRpcResponse(requestId, error, result) {
   worker.postMessage({ type: "stdin", chunk }, [chunk.buffer]);
 }
 
-let exCommandAccumulator = "";
 function enqueueInput(keys) {
-  if (keys === ":") {
-    exCommandAccumulator = ":";
-  } else if (exCommandAccumulator.startsWith(":")) {
-    if (keys === "<CR>") {
-      const cmd = exCommandAccumulator.trim().toLowerCase();
-      exCommandAccumulator = "";
-      if (cmd === ":w" || cmd === ":write") {
-        sendRpc("nvim_input", ["<Esc>"]);
-        sendRpc("nvim_exec_lua", ["return vim.api.nvim_buf_get_lines(0, 0, -1, false)", []]).then(lines => {
-          if (Array.isArray(lines)) runPathWithText(lines.join("\n"));
-        });
-        return;
-      }
-      if (cmd === ":h" || cmd === ":help") {
-        openHelp();
-        return;
-      }
-      if (cmd === ":q" || cmd === ":close") {
-        if (isHelpOpen()) {
-          closeHelp();
-          return;
-        }
-      }
-      if (cmd === ":n" || cmd === ":next") {
-        if (levelIdx < LEVELS.length - 1) {
-          loadLevel(levelIdx + 1);
-          return;
-        }
-      }
-      if (cmd === ":p" || cmd === ":prev") {
-        if (levelIdx > 0) {
-          loadLevel(levelIdx - 1);
-          return;
-        }
-      }
-    } else if (keys === "<Esc>") {
-      exCommandAccumulator = "";
-    } else if (keys === "<BS>") {
-      exCommandAccumulator = exCommandAccumulator.slice(0, -1);
-    } else if (keys.length === 1) {
-      exCommandAccumulator += keys;
-    }
-  }
   pendingKeys += keys;
   if (pendingKeysScheduled) return;
   pendingKeysScheduled = true;
@@ -1076,6 +1035,10 @@ function primeNeovim() {
   sendRpc("nvim_ui_attach", [cols, rows, { rgb: true, ext_linegrid: true, ext_hlstate: true }]);
   sendRpc("nvim_ui_set_focus", [true]);
   sendRpc("nvim_command", ["set noswapfile"]);
+  sendRpc("nvim_command", ["set nobackup"]);
+  sendRpc("nvim_command", ["set nowritebackup"]);
+  sendRpc("nvim_command", ["set noundofile"]);
+  sendRpc("nvim_command", ["set noreadonly"]);
   sendRpc("nvim_command", ["set number"]);
   sendRpc("nvim_command", ["set background=light"]);
   sendRpc("nvim_command", ["set fillchars=eob:~"]);
@@ -1094,27 +1057,45 @@ function primeNeovim() {
   sendRpc("nvim_command", ["highlight String guifg=#333333"]);
   sendRpc("nvim_command", ["highlight Number guifg=#000000 gui=bold"]);
 
-  // Setup Lua integration for :w, :help, :next, :prev
+  // Setup Lua integration using non-colliding standard idioms:
+  // - Leader key: <Space>
+  // - Custom User Ex commands: :Run, :R, :Manual, :Next, :Prev
+  // - Keymaps: <leader>r (<Space>r), <F5>, <C-CR>, <leader>m (<Space>m), <F1>, <leader>n, <leader>p
+  // - Official built-in commands (:w, :help, :q, motions) are 100% UNTOUCHED
   const lua = `
     local ui_chan = (vim.api.nvim_get_api_info() or {})[1]
     if ui_chan then
-      local function notify_run()
-        vim.bo.modified = false
+      vim.g.mapleader = " "
+      vim.g.maplocalleader = " "
+
+      local function execute_sphere_path()
         local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
         vim.rpcnotify(ui_chan, 'sphere_run', lines)
-        print("[sphere-route] path compiled and executed")
+        print("[sphere-route] path executed")
       end
 
-      vim.api.nvim_create_autocmd("BufWriteCmd", {
-        pattern = "*",
-        callback = function(ev)
-          vim.bo[ev.buf].modified = false
-          local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
-          vim.rpcnotify(ui_chan, 'sphere_run', lines)
-          print("[sphere-route] path compiled and executed")
-        end
-      })
+      local function open_sphere_manual()
+        vim.rpcnotify(ui_chan, 'sphere_manual')
+      end
 
+      -- Uppercase user Ex commands (official Vim standard for custom commands)
+      vim.api.nvim_create_user_command("Run", execute_sphere_path, { desc = "Compile & execute path on sphere" })
+      vim.api.nvim_create_user_command("R", execute_sphere_path, { desc = "Compile & execute path on sphere" })
+      vim.api.nvim_create_user_command("Manual", open_sphere_manual, { desc = "Open Rihla reference manual" })
+      vim.api.nvim_create_user_command("Next", function() vim.rpcnotify(ui_chan, 'sphere_next') end, { desc = "Next waypoint" })
+      vim.api.nvim_create_user_command("Prev", function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { desc = "Previous waypoint" })
+
+      -- Custom keybindings using unused keys and leader keymaps
+      vim.keymap.set('n', '<leader>r', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
+      vim.keymap.set('n', '<leader><CR>', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
+      vim.keymap.set({'n', 'i'}, '<F5>', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
+      vim.keymap.set({'n', 'i'}, '<C-CR>', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
+      vim.keymap.set('n', '<leader>m', open_sphere_manual, { silent = true, desc = "Open reference manual" })
+      vim.keymap.set({'n', 'i'}, '<F1>', open_sphere_manual, { silent = true, desc = "Open reference manual" })
+      vim.keymap.set('n', '<leader>n', function() vim.rpcnotify(ui_chan, 'sphere_next') end, { silent = true, desc = "Next waypoint" })
+      vim.keymap.set('n', '<leader>p', function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { silent = true, desc = "Previous waypoint" })
+
+      -- Live buffer change notification for live preview
       vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
         pattern = "*",
         callback = function(ev)
@@ -1123,37 +1104,14 @@ function primeNeovim() {
         end
       })
 
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = "help",
+      -- Standard BufWritePost: if user chooses to save with standard :w, also execute path
+      vim.api.nvim_create_autocmd("BufWritePost", {
+        pattern = "*",
         callback = function(ev)
-          vim.rpcnotify(ui_chan, 'sphere_help')
-          pcall(vim.api.nvim_buf_delete, ev.buf, {force = true})
+          local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
+          vim.rpcnotify(ui_chan, 'sphere_run', lines)
         end
       })
-
-      vim.api.nvim_create_user_command("W", notify_run, {})
-      vim.api.nvim_create_user_command("Write", notify_run, {})
-      vim.api.nvim_create_user_command("Help", function()
-        vim.rpcnotify(ui_chan, 'sphere_help')
-      end, {})
-      vim.api.nvim_create_user_command("H", function()
-        vim.rpcnotify(ui_chan, 'sphere_help')
-      end, {})
-      vim.api.nvim_create_user_command("Next", function()
-        vim.rpcnotify(ui_chan, 'sphere_next')
-      end, {})
-      vim.api.nvim_create_user_command("Prev", function()
-        vim.rpcnotify(ui_chan, 'sphere_prev')
-      end, {})
-
-      vim.cmd([[
-        cabbrev w W
-        cabbrev write Write
-        cabbrev help Help
-        cabbrev h Help
-        cabbrev next Next
-        cabbrev prev Prev
-      ]])
     end
   `;
   sendRpc("nvim_exec_lua", [lua, []]);
@@ -1163,7 +1121,7 @@ function primeNeovim() {
 
   // Hide splash
   splashEl.classList.add("hidden");
-  document.getElementById("hud-status").textContent = "Type :w to run · :help for manual";
+  document.getElementById("hud-status").textContent = "Type :Run or press <Space>r / <F5> to execute · :Manual for manual";
 }
 
 function setBufferCode(codeStr) {
@@ -1172,10 +1130,13 @@ function setBufferCode(codeStr) {
   const lua = `
     local lines = ...
     local buf = vim.api.nvim_get_current_buf()
-    pcall(vim.api.nvim_buf_set_name, buf, "path.cpp")
+    if vim.api.nvim_buf_get_name(buf) == "" then
+      pcall(vim.api.nvim_buf_set_name, buf, "path.cpp")
+    end
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.bo[buf].filetype = "cpp"
-    vim.bo[buf].buftype = "acwrite"
+    vim.bo[buf].readonly = false
+    vim.bo[buf].buftype = ""
     vim.bo[buf].modified = false
     vim.api.nvim_win_set_cursor(0, {1, 0})
   `;
@@ -1203,7 +1164,7 @@ function handleWorkerMessage(event) {
     } else if (method === "sphere_change") {
       const lines = params?.[0] || [];
       currentBufferText = lines.join("\n");
-    } else if (method === "sphere_help") {
+    } else if (method === "sphere_manual" || method === "sphere_help") {
       openHelp();
     } else if (method === "sphere_close_help") {
       closeHelp();
@@ -1335,6 +1296,8 @@ function getHl(map, id, isCursor) {
 
 function translateKey(ev) {
   const key = ev.key;
+  if (key === "F5") return "<F5>";
+  if (key === "F1") return "<F1>";
   if (key === "Backspace") return "<BS>";
   if (key === "Enter") return ev.ctrlKey ? "<C-CR>" : "<CR>";
   if (key === "Tab") return ev.shiftKey ? "<S-Tab>" : "<Tab>";
@@ -1418,7 +1381,7 @@ document.getElementById("help-btn").addEventListener("click", () => openHelp());
 document.getElementById("help-close-btn").addEventListener("click", () => closeHelp());
 
 function triggerRun() {
-  enqueueInput(":w<CR>");
+  enqueueInput(":Run<CR>");
 }
 document.getElementById("run-trigger").addEventListener("click", () => triggerRun());
 
@@ -1484,7 +1447,7 @@ function runPathWithText(src) {
         renderWaypoints();
         statusEl.className = "hud-status pass";
         statusEl.textContent = levelIdx < LEVELS.length - 1
-          ? `[✓ ADMISSIBLE] Type :n for next waypoint`
+          ? `[✓ ADMISSIBLE] Type :Next (<Space>n) for next waypoint`
           : `[✓ 100% COMPLETE] All spherical invariants satisfied!`;
       } else {
         statusEl.className = "hud-status fail";
@@ -1521,7 +1484,7 @@ function loadLevel(idx) {
   document.getElementById("hud-level-title").textContent = lvl.title;
   document.getElementById("hud-spec").textContent = lvl.specText;
   document.getElementById("hud-status").className = "hud-status";
-  document.getElementById("hud-status").textContent = "Type :w to run · :help for manual";
+  document.getElementById("hud-status").textContent = "Type :Run or press <Space>r / <F5> to execute · :Manual for manual";
 
   renderWaypoints();
   updateReadout(null);
