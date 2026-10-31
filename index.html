@@ -34,7 +34,8 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg
 
 /* --- Left Pane: Sphere Studio --- */
 .sphere-pane {
-  flex: 1;
+  width: 50%;
+  min-width: 260px;
   height: 100vh;
   position: relative;
   background: radial-gradient(circle at 50% 50%, #ffffff 0%, #f4f4f4 85%);
@@ -42,6 +43,7 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 canvas#sky {
@@ -145,11 +147,56 @@ canvas#sky.dragging { cursor: grabbing; }
   border-style: dashed;
 }
 
+/* --- Resizable Split Gutter --- */
+.split-gutter {
+  width: 12px;
+  margin: 0 -6px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.gutter-handle {
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+  pointer-events: none;
+  transition: width .15s, background .15s;
+}
+.split-gutter:hover,
+.split-gutter.dragging {
+  background: rgba(0, 0, 0, 0.05);
+}
+.split-gutter:hover .gutter-handle,
+.split-gutter.dragging .gutter-handle {
+  width: 3px;
+  background: #000000;
+}
+
+body.is-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.is-resizing canvas#sky {
+  pointer-events: none !important;
+}
+
 /* --- Right Pane: Compiled Neovim WASM Editor --- */
 .editor-pane {
   flex: 1;
+  min-width: 280px;
   height: 100vh;
-  border-left: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -358,6 +405,11 @@ canvas#sky.dragging { cursor: grabbing; }
       </div>
       <div class="hud-status" id="hud-status">Initializing Neovim WebAssembly...</div>
     </div>
+  </div>
+
+  <!-- RESIZABLE SPLIT GUTTER -->
+  <div class="split-gutter" id="split-gutter" title="Drag to resize split (Double-click for 50/50)">
+    <div class="gutter-handle"></div>
   </div>
 
   <!-- RIGHT PANE: GENUINE NEOVIM WEBASSEMBLY -->
@@ -1461,6 +1513,76 @@ function loadLevel(idx) {
     setBufferCode(lvl.code);
   }
 }
+
+/* ========================================================================= */
+/* 7. DRAGGABLE SPLIT DIVIDER & VIEW RESIZING                              */
+/* ========================================================================= */
+const gutter = document.getElementById("split-gutter");
+const spherePane = document.getElementById("sphere-pane");
+let isDraggingSplit = false;
+let currentSplitPct = 50;
+
+function updateSplitLayout(pct) {
+  currentSplitPct = pct;
+  spherePane.style.width = `${pct}%`;
+  resizeCanvas();
+  if (workerReady) {
+    const dims = computeGridDimensions();
+    if (dims.cols !== cols || dims.rows !== rows) {
+      cols = dims.cols;
+      rows = dims.rows;
+      sendRpc("nvim_ui_try_resize", [cols, rows]);
+    }
+  }
+}
+
+function setSplitFromClientX(clientX) {
+  const containerW = window.innerWidth;
+  const minSphere = 260;
+  const minEditor = 280;
+  const clampedX = Math.max(minSphere, Math.min(containerW - minEditor, clientX));
+  const pct = (clampedX / containerW) * 100;
+  updateSplitLayout(pct);
+}
+
+// Restore saved split preference
+const savedSplit = localStorage.getItem("rihla_split_pct");
+if (savedSplit) {
+  const val = parseFloat(savedSplit);
+  if (!isNaN(val) && val >= 15 && val <= 85) {
+    currentSplitPct = val;
+    spherePane.style.width = `${val}%`;
+  }
+}
+
+gutter.addEventListener("pointerdown", (e) => {
+  isDraggingSplit = true;
+  gutter.classList.add("dragging");
+  document.body.classList.add("is-resizing");
+  gutter.setPointerCapture(e.pointerId);
+});
+
+gutter.addEventListener("pointermove", (e) => {
+  if (!isDraggingSplit) return;
+  setSplitFromClientX(e.clientX);
+});
+
+function finishSplitDrag() {
+  if (!isDraggingSplit) return;
+  isDraggingSplit = false;
+  gutter.classList.remove("dragging");
+  document.body.classList.remove("is-resizing");
+  localStorage.setItem("rihla_split_pct", currentSplitPct.toFixed(2));
+}
+
+gutter.addEventListener("pointerup", finishSplitDrag);
+gutter.addEventListener("pointercancel", finishSplitDrag);
+
+// Double-click resets to 50/50
+gutter.addEventListener("dblclick", () => {
+  updateSplitLayout(50);
+  localStorage.setItem("rihla_split_pct", "50");
+});
 
 // Initial bootstrap
 resizeCanvas();
