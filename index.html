@@ -3,17 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rihla — Spherical Studio</title>
+<title>Rihla — Spherical Studio (Neovim WebAssembly)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-<!-- CodeMirror & Vim Mode CDN -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/vim.min.js"></script>
 
 <style>
 :root {
@@ -26,7 +18,7 @@
   --fg: #000000;
   --fg-dim: #555555;
   --fg-muted: #888888;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --sans: "Inter", system-ui, sans-serif;
 }
 
@@ -153,7 +145,7 @@ canvas#sky.dragging { cursor: grabbing; }
   border-style: dashed;
 }
 
-/* --- Right Pane: Neovim Editor --- */
+/* --- Right Pane: Compiled Neovim WASM Editor --- */
 .editor-pane {
   flex: 1;
   height: 100vh;
@@ -162,53 +154,44 @@ canvas#sky.dragging { cursor: grabbing; }
   flex-direction: column;
   background: var(--bg);
   position: relative;
+  overflow: hidden;
 }
 
-/* CodeMirror Neovim Monochrome (Black on White) Theme */
-.CodeMirror {
+.nvim-container {
   flex: 1;
-  height: auto;
+  position: relative;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+}
+
+.nvim-grid {
+  flex: 1;
   font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.65;
-  background: #ffffff !important;
-  color: #000000 !important;
+  font-size: 13.5px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow: hidden;
+  outline: none;
+  padding: 8px 12px;
+  background: #ffffff;
+  color: #000000;
+  cursor: text;
+  user-select: text;
 }
-.CodeMirror-gutters {
-  background: #fafafa !important;
-  border-right: 1px solid #e8e8e8 !important;
+
+.nvim-grid:focus {
+  outline: none;
 }
-.CodeMirror-linenumber {
-  color: #a0a0a0 !important;
-  padding: 0 10px 0 6px !important;
-}
-.CodeMirror-cursor {
-  border-left: 2px solid #000000 !important;
-}
-.cm-fat-cursor .CodeMirror-cursor {
+
+.cursor {
   background: #000000 !important;
-  opacity: 0.9 !important;
   color: #ffffff !important;
 }
-.cm-animate-fat-cursor {
-  background-color: #000000 !important;
-  opacity: 0.9 !important;
-}
-
-/* Monochrome Syntax Highlighting (Black on White) */
-.cm-s-default .cm-keyword { color: #000000; font-weight: 700; }
-.cm-s-default .cm-def { color: #000000; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.cm-s-default .cm-variable { color: #111111; }
-.cm-s-default .cm-variable-2 { color: #333333; }
-.cm-s-default .cm-number { color: #000000; font-weight: 600; }
-.cm-s-default .cm-comment { color: #777777; font-style: italic; }
-.cm-s-default .cm-string { color: #444444; }
-.cm-s-default .cm-operator { color: #000000; font-weight: 700; }
-.cm-s-default .cm-meta { color: #555555; }
 
 /* Neovim Statusline */
 .nvim-statusline {
-  height: 26px;
+  height: 28px;
   background: #f0f0f0;
   border-top: 1px solid #dcdcdc;
   display: flex;
@@ -217,6 +200,7 @@ canvas#sky.dragging { cursor: grabbing; }
   font-family: var(--mono);
   font-size: 11.5px;
   user-select: none;
+  z-index: 5;
 }
 .nvim-mode {
   padding: 0 10px;
@@ -228,12 +212,14 @@ canvas#sky.dragging { cursor: grabbing; }
   font-size: 10.5px;
 }
 .mode-normal { background: #000000; color: #ffffff; }
-.mode-insert { background: #666666; color: #ffffff; }
-.mode-visual { background: #aaaaaa; color: #000000; }
+.mode-insert { background: #555555; color: #ffffff; }
+.mode-visual { background: #999999; color: #000000; }
+.mode-command { background: #222222; color: #ffffff; }
 
 .nvim-file {
   color: #444444;
   padding: 0 10px;
+  font-size: 11.5px;
 }
 .nvim-file b { color: #000000; font-weight: 600; }
 
@@ -257,25 +243,7 @@ canvas#sky.dragging { cursor: grabbing; }
 }
 .nvim-btn:hover { background: #000000; color: #ffffff; }
 
-/* CodeMirror Dialog (Vim Command Bar `:`) */
-.CodeMirror-dialog {
-  background: #f8f8f8 !important;
-  color: #000000 !important;
-  border-top: 1px solid #d0d0d0 !important;
-  font-family: var(--mono) !important;
-  font-size: 12.5px !important;
-  padding: 3px 8px !important;
-}
-.CodeMirror-dialog input {
-  background: transparent !important;
-  color: #000000 !important;
-  font-family: var(--mono) !important;
-  font-size: 12.5px !important;
-  outline: none !important;
-  border: none !important;
-}
-
-/* --- Neovim Floating Help Window (:help) --- */
+/* --- Floating Help Drawer (:help) --- */
 .help-overlay {
   position: absolute;
   inset: 0;
@@ -334,6 +302,35 @@ canvas#sky.dragging { cursor: grabbing; }
   padding: 1px 4px;
   border-radius: 2px;
 }
+
+/* Loading Splash Overlay */
+.nvim-loading-splash {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: #000000;
+  gap: 10px;
+  transition: opacity .3s;
+}
+.nvim-loading-splash.hidden { display: none; }
+.nvim-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #000000;
+  border-radius: 50%;
+  animation: nvim-spin .8s linear infinite;
+}
+@keyframes nvim-spin {
+  to { transform: rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -359,13 +356,22 @@ canvas#sky.dragging { cursor: grabbing; }
         <span>len <b>0°</b></span>
         <span>holonomy <b>—</b></span>
       </div>
-      <div class="hud-status" id="hud-status">Type :w to run · :help for manual</div>
+      <div class="hud-status" id="hud-status">Initializing Neovim WebAssembly...</div>
     </div>
   </div>
 
-  <!-- RIGHT PANE: NEOVIM TEXT ENTRY -->
+  <!-- RIGHT PANE: GENUINE NEOVIM WEBASSEMBLY -->
   <div class="editor-pane" id="editor-pane">
-    <textarea id="nvim-editor"></textarea>
+    <div class="nvim-container" id="nvim-container">
+      <div id="nvim-grid" class="nvim-grid" tabindex="0" aria-label="Neovim WebAssembly grid"></div>
+      
+      <!-- Loading Splash -->
+      <div class="nvim-loading-splash" id="nvim-loading-splash">
+        <div class="nvim-spinner"></div>
+        <div>Booting Neovim WebAssembly...</div>
+        <div style="font-size:11px;color:#777;">(wasm32-wasi compiled engine)</div>
+      </div>
+    </div>
     
     <!-- Help Drawer (:help) -->
     <div class="help-overlay hidden" id="help-drawer">
@@ -374,7 +380,7 @@ canvas#sky.dragging { cursor: grabbing; }
         <button class="help-close-btn" id="help-close-btn">[x] :q</button>
       </div>
       <div class="help-body" id="help-text">
-*rihla.txt*   Spherical Path Studio Manual (Black on White Edition)
+*rihla.txt*   Spherical Path Studio Manual (Neovim WebAssembly Edition)
 
 ==============================================================================
 1. C++ SPHERICAL PRIMITIVES                                      *primitives*
@@ -391,7 +397,7 @@ canvas#sky.dragging { cursor: grabbing; }
 ==============================================================================
 2. STANDARD MATH LIBRARY (<cmath>)                                   *cmath*
 
-  The standard math library is available directly:
+  The standard C++ math functions are available directly:
 
   pow(base, exp)           Computes base^exp (e.g. pow(2.0, 3.0) == 8.0).
   sqrt(x)                  Square root of x.
@@ -403,16 +409,18 @@ canvas#sky.dragging { cursor: grabbing; }
   min(a, b), max(a, b)     Minimum and maximum.
   M_PI                     Constant pi (3.141592653589793).
 
-  Both `pow(...)` and `std::pow(...)` namespaces are supported.
+  Both bare `pow(...)` and `std::pow(...)` namespaces are supported.
 
 ==============================================================================
-3. NEOVIM COMMANDS & SHORTCUTS                                    *commands*
+3. GENUINE NEOVIM WEBASSEMBLY                                     *neovim*
+
+  Running native compiled Neovim WebAssembly via WASI/Emscripten.
 
   :w, :write               Compile and execute the path on the sphere.
   :n, :next                Advance to the next waypoint (if verified).
   :p, :prev                Navigate back to the previous waypoint.
   :h, :help                Open this reference manual buffer.
-  :q, :close               Close this reference manual buffer.
+  :q                       Close this reference manual buffer.
   <Ctrl-Enter>             Execute path without leaving Insert mode.
 
 ==============================================================================
@@ -420,12 +428,12 @@ canvas#sky.dragging { cursor: grabbing; }
 
   Standard C++ functions, loops, and variables are supported:
 
-      #include <rihla.hpp>
-      #include <cmath>
+      #include &lt;rihla.hpp&gt;
+      #include &lt;cmath&gt;
 
       void path() {
           double radius = pow(2.0, 5.0); // 32 degrees
-          for (int i = 0; i < 3; ++i) {
+          for (int i = 0; i &lt; 3; ++i) {
               forward(radius);
               turn(90.0);
           }
@@ -436,7 +444,7 @@ canvas#sky.dragging { cursor: grabbing; }
     <!-- Statusline -->
     <div class="nvim-statusline">
       <div class="nvim-mode mode-normal" id="nvim-mode">NORMAL</div>
-      <div class="nvim-file"><b>path.cpp</b> [C++]</div>
+      <div class="nvim-file"><b>path.cpp</b> [C++] · Neovim WASM</div>
       <div class="nvim-info">
         <span id="nvim-cursor">ln 1, col 1</span>
         <button class="nvim-btn" id="help-btn">:help</button>
@@ -447,8 +455,9 @@ canvas#sky.dragging { cursor: grabbing; }
 
 </div>
 
-<script>
+<script type="module">
 "use strict";
+import { encode } from "./msgpack.js";
 
 /* ========================================================================= */
 /* 1. SPHERICAL GEOMETRY ENGINE (BLACK ON WHITE MATH)                       */
@@ -539,21 +548,14 @@ function parseCppProgram(src) {
   const fd = forward, t = turn;
 
   let js = src;
-  // Handle bare commands: forward 60; -> forward(60);
   js = js.replace(/^\s*(forward|fd|turn|t)\s+([-\d.]+)\s*;?\s*$/gmi, "$1($2);");
-  // Strip std:: namespace qualifier (e.g. std::pow -> pow, std::sqrt -> sqrt)
   js = js.replace(/\bstd::/g, "");
-  // Strip preprocessor headers (#include <...>, #define, etc.)
   js = js.replace(/^\s*#.*$/gm, "");
-  // Strip using namespace ...;
   js = js.replace(/^\s*using\s+namespace\s+[^;]+;/gm, "");
-  // Replace C++ function declarations: void path() -> function path()
   js = js.replace(/\b(void|int|double|float|auto)\s+([a-zA-Z_]\w*)\s*\(/g, "function $2(");
-  // Replace C++ type declarations with let / const
   js = js.replace(/\b(int|double|float|auto|size_t)\s+/g, "let ");
   js = js.replace(/\bconst\s+(int|double|float|auto|size_t)\s+/g, "const ");
 
-  // Standard <cmath> functions injected into scope
   const cmathScope = `
     const { pow, sqrt, abs, sin, cos, tan, asin, acos, atan2, floor, ceil, min, max, exp, log, PI } = Math;
     const M_PI = Math.PI;
@@ -578,7 +580,7 @@ function parseCppProgram(src) {
 function simulate(level, cmds) {
   let p = ll(level.start.lat, level.start.lon);
   let h = level.start.heading === "east" ? eastAt(p) : northAt(p);
-  let r = h.slice(); // Ghost compass (parallel transport only)
+  let r = h.slice();
   const p0 = p.slice(), h0 = h.slice();
   const samples = [{ p: p.slice(), t: 0 }];
   let totalTurn = 0, pathLen = 0;
@@ -820,7 +822,6 @@ function render() {
   ctx.clearRect(0, 0, W, W);
   const lvl = LEVELS[levelIdx];
 
-  // Sphere base disk (clean white with subtle shadow and crisp black rim)
   const g = ctx.createRadialGradient(W / 2 - Rpx * 0.25, W / 2 - Rpx * 0.3, Rpx * 0.1, W / 2, W / 2, Rpx * 1.05);
   g.addColorStop(0, "#ffffff");
   g.addColorStop(0.7, "#f9f9f9");
@@ -828,19 +829,16 @@ function render() {
   ctx.beginPath(); ctx.arc(W / 2, W / 2, Rpx, 0, 2 * Math.PI); ctx.fillStyle = g; ctx.fill();
   ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.4; ctx.stroke();
 
-  // Graticule latitudes
   for (let lat = -60; lat <= 60; lat += 30) {
     const pts = []; for (let lon = 0; lon <= 360; lon += 4) pts.push(ll(lat, lon));
     drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(0,0,0,.45)" : "rgba(0,0,0,.14)", "rgba(0,0,0,.04)", lat === 0 ? 1.4 : 0.8);
   }
-  // Graticule meridians
   for (let lon = 0; lon < 180; lon += 30) {
     const pts = []; for (let lat = -90; lat <= 90; lat += 4) { pts.push(ll(lat, lon)); }
     for (let lat = 90; lat >= -90; lat -= 4) { pts.push(ll(lat, lon + 180)); }
     drawArcSampled(pts, W, Rpx, "rgba(0,0,0,.14)", "rgba(0,0,0,.04)", 0.8);
   }
 
-  // Storm zone (stippled grey concentric circles)
   if (lvl.storm) {
     const c = ll(lvl.storm.lat, lvl.storm.lon);
     for (let r = lvl.storm.radius; r > 2; r -= 4) {
@@ -849,18 +847,15 @@ function render() {
     drawMarker(c, W, Rpx, "#000000", 3);
   }
 
-  // Target ring (crisp black contour)
   if (lvl.target) {
     const t = ll(lvl.target.lat, lvl.target.lon);
     drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "#000000", "rgba(0,0,0,.25)", 2.0);
     drawMarker(t, W, Rpx, "#000000", 3, true);
   }
 
-  // Start position (black node with outer ring)
   const s = ll(lvl.start.lat, lvl.start.lon);
   drawMarker(s, W, Rpx, "#000000", 4.5, true, "#888888");
 
-  // Trajectory path (crisp solid black line)
   if (lastResult) {
     const n = Math.max(2, Math.floor(lastResult.samples.length * drawProgress));
     const pts = lastResult.samples.slice(0, n).map(o => o.p);
@@ -893,45 +888,457 @@ cv.addEventListener("pointermove", e => {
 cv.addEventListener("pointerup", () => { dragging = false; cv.classList.remove("dragging"); });
 
 /* ========================================================================= */
-/* 5. CODE-MIRROR NEOVIM INTEGRATION & EX COMMANDS                          */
+/* 5. GENUINE NEOVIM WEBASSEMBLY CLIENT & LINEGRID RENDERER                  */
 /* ========================================================================= */
-const editor = CodeMirror.fromTextArea(document.getElementById("nvim-editor"), {
-  lineNumbers: true,
-  mode: "text/x-c++src",
-  keyMap: "vim",
-  matchBrackets: true,
-  tabSize: 4,
-  indentUnit: 4
+const gridEl = document.getElementById("nvim-grid");
+const modeBadge = document.getElementById("nvim-mode");
+const cursorBadge = document.getElementById("nvim-cursor");
+const splashEl = document.getElementById("nvim-loading-splash");
+
+let worker = null;
+let reqId = 1;
+const pendingRpcResolvers = new Map();
+let workerReady = false;
+let primeSent = false;
+let pendingChunks = [];
+let pendingKeys = "";
+let pendingKeysScheduled = false;
+let currentBufferText = "";
+let cols = 80, rows = 30;
+
+function computeGridDimensions() {
+  const container = document.getElementById("nvim-container");
+  const rect = container.getBoundingClientRect();
+  const charW = 8.15;
+  const charH = 19.5;
+  const c = Math.max(30, Math.floor((rect.width - 24) / charW));
+  const r = Math.max(12, Math.floor((rect.height - 16) / charH));
+  return { cols: c, rows: r };
+}
+
+window.sendRpc = sendRpc;
+window.setBufferCode = setBufferCode;
+window.enqueueInput = enqueueInput;
+function startNeovimWasm() {
+  const dims = computeGridDimensions();
+  cols = dims.cols;
+  rows = dims.rows;
+
+  worker = new Worker("./nvim-worker.js", { type: "module" });
+  worker.onmessage = handleWorkerMessage;
+  worker.postMessage({ type: "start", cols, rows });
+}
+
+function sendRpc(method, params = []) {
+  const curId = reqId++;
+  const payload = [0, curId, method, params];
+  const chunk = encode(payload);
+  if (!workerReady) {
+    pendingChunks.push({ chunk, id: curId, method });
+    return Promise.resolve(null);
+  }
+  worker.postMessage({ type: "stdin", chunk }, [chunk.buffer]);
+  return new Promise((resolve, reject) => {
+    pendingRpcResolvers.set(curId, { resolve, reject });
+  });
+}
+
+function sendRpcNotify(method, params = []) {
+  const payload = [2, method, params];
+  const chunk = encode(payload);
+  if (!workerReady) {
+    pendingChunks.push({ chunk });
+    return;
+  }
+  worker.postMessage({ type: "stdin", chunk }, [chunk.buffer]);
+}
+
+function sendRpcResponse(requestId, error, result) {
+  const payload = [1, requestId, error, result];
+  const chunk = encode(payload);
+  if (!workerReady) {
+    pendingChunks.push({ chunk });
+    return;
+  }
+  worker.postMessage({ type: "stdin", chunk }, [chunk.buffer]);
+}
+
+let exCommandAccumulator = "";
+function enqueueInput(keys) {
+  if (keys === ":") {
+    exCommandAccumulator = ":";
+  } else if (exCommandAccumulator.startsWith(":")) {
+    if (keys === "<CR>") {
+      const cmd = exCommandAccumulator.trim().toLowerCase();
+      exCommandAccumulator = "";
+      if (cmd === ":h" || cmd === ":help") {
+        openHelp();
+        return;
+      }
+      if (cmd === ":q" || cmd === ":close") {
+        if (isHelpOpen()) {
+          closeHelp();
+          return;
+        }
+      }
+      if (cmd === ":n" || cmd === ":next") {
+        if (levelIdx < LEVELS.length - 1) {
+          loadLevel(levelIdx + 1);
+          return;
+        }
+      }
+      if (cmd === ":p" || cmd === ":prev") {
+        if (levelIdx > 0) {
+          loadLevel(levelIdx - 1);
+          return;
+        }
+      }
+    } else if (keys === "<Esc>") {
+      exCommandAccumulator = "";
+    } else if (keys === "<BS>") {
+      exCommandAccumulator = exCommandAccumulator.slice(0, -1);
+    } else if (keys.length === 1) {
+      exCommandAccumulator += keys;
+    }
+  }
+  pendingKeys += keys;
+  if (pendingKeysScheduled) return;
+  pendingKeysScheduled = true;
+  queueMicrotask(() => {
+    pendingKeysScheduled = false;
+    const k = pendingKeys;
+    pendingKeys = "";
+    if (k) sendRpc("nvim_input", [k]);
+  });
+}
+
+function primeNeovim() {
+  primeSent = true;
+  sendRpc("nvim_ui_attach", [cols, rows, { rgb: true, ext_linegrid: true, ext_hlstate: true }]);
+  sendRpc("nvim_ui_set_focus", [true]);
+  sendRpc("nvim_command", ["set noswapfile"]);
+  sendRpc("nvim_command", ["set number"]);
+  sendRpc("nvim_command", ["set background=light"]);
+  sendRpc("nvim_command", ["set fillchars=eob:~"]);
+  sendRpc("nvim_command", ["set tabstop=4 shiftwidth=4 expandtab"]);
+
+  // Inverted / black-on-white highlights
+  sendRpc("nvim_command", ["highlight Normal guibg=#ffffff guifg=#000000"]);
+  sendRpc("nvim_command", ["highlight LineNr guibg=#fafafa guifg=#888888"]);
+  sendRpc("nvim_command", ["highlight CursorLineNr guibg=#fafafa guifg=#000000 gui=bold"]);
+  sendRpc("nvim_command", ["highlight StatusLine guibg=#f0f0f0 guifg=#000000 gui=none"]);
+  sendRpc("nvim_command", ["highlight StatusLineNC guibg=#f0f0f0 guifg=#666666 gui=none"]);
+  sendRpc("nvim_command", ["highlight Cursor guibg=#000000 guifg=#ffffff"]);
+  sendRpc("nvim_command", ["highlight Comment guifg=#777777 gui=italic"]);
+  sendRpc("nvim_command", ["highlight Keyword guifg=#000000 gui=bold"]);
+  sendRpc("nvim_command", ["highlight Type guifg=#000000 gui=bold"]);
+  sendRpc("nvim_command", ["highlight String guifg=#333333"]);
+  sendRpc("nvim_command", ["highlight Number guifg=#000000 gui=bold"]);
+
+  // Setup Lua integration for :w, :help, :next, :prev
+  const lua = `
+    local ui_chan = (vim.api.nvim_get_api_info() or {})[1]
+    if ui_chan then
+      vim.api.nvim_create_autocmd("BufWriteCmd", {
+        pattern = "*",
+        callback = function(ev)
+          vim.bo[ev.buf].modified = false
+          local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
+          vim.rpcnotify(ui_chan, 'sphere_run', lines)
+          print("[sphere-route] path compiled and executed")
+        end
+      })
+
+      vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+        pattern = "*",
+        callback = function(ev)
+          local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
+          vim.rpcnotify(ui_chan, 'sphere_change', lines)
+        end
+      })
+
+      
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "help",
+        callback = function(ev)
+          vim.rpcnotify(ui_chan, 'sphere_help')
+          pcall(vim.api.nvim_buf_delete, ev.buf, {force = true})
+        end
+      })
+
+      vim.api.nvim_create_user_command("Help", function()
+        vim.rpcnotify(ui_chan, 'sphere_help')
+      end, {})
+      vim.api.nvim_create_user_command("H", function()
+        vim.rpcnotify(ui_chan, 'sphere_help')
+      end, {})
+      vim.api.nvim_create_user_command("Next", function()
+        vim.rpcnotify(ui_chan, 'sphere_next')
+      end, {})
+      vim.api.nvim_create_user_command("Prev", function()
+        vim.rpcnotify(ui_chan, 'sphere_prev')
+      end, {})
+
+      vim.cmd([[
+        cabbrev help Help
+        cabbrev h Help
+        cabbrev next Next
+        cabbrev prev Prev
+      ]])
+    end
+  `;
+  sendRpc("nvim_exec_lua", [lua, []]);
+
+  // Load starter level into path.cpp
+  setBufferCode(LEVELS[levelIdx].code);
+
+  // Hide splash
+  splashEl.classList.add("hidden");
+  document.getElementById("hud-status").textContent = "Type :w to run · :help for manual";
+}
+
+function setBufferCode(codeStr) {
+  currentBufferText = codeStr;
+  const lines = codeStr.split(/\r?\n/);
+  const lua = `
+    local lines = ...
+    local buf = vim.api.nvim_get_current_buf()
+    pcall(vim.api.nvim_buf_set_name, buf, "path.cpp")
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].filetype = "cpp"
+    vim.bo[buf].modified = false
+    vim.api.nvim_win_set_cursor(0, {1, 0})
+  `;
+  sendRpc("nvim_exec_lua", [lua, [lines]]).then(() => {
+    runPathWithText(codeStr);
+  });
+}
+
+function handleWorkerMessage(event) {
+  const { type } = event.data || {};
+  if (type === "draw-text") {
+    renderGrid(event.data.cells, event.data.cursor, event.data.cursorHlId, event.data.mode, event.data.hls);
+  } else if (type === "response") {
+    const resolver = pendingRpcResolvers.get(event.data.msgid);
+    if (resolver) {
+      pendingRpcResolvers.delete(event.data.msgid);
+      if (event.data.error) resolver.reject(event.data.error);
+      else resolver.resolve(event.data.result);
+    }
+  } else if (type === "notification") {
+    const { method, params } = event.data;
+    if (method === "sphere_run") {
+      const lines = params?.[0] || [];
+      runPathWithText(lines.join("\n"));
+    } else if (method === "sphere_change") {
+      const lines = params?.[0] || [];
+      currentBufferText = lines.join("\n");
+    } else if (method === "sphere_help") {
+      openHelp();
+    } else if (method === "sphere_close_help") {
+      closeHelp();
+    } else if (method === "sphere_next") {
+      if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
+    } else if (method === "sphere_prev") {
+      if (levelIdx > 0) loadLevel(levelIdx - 1);
+    }
+  } else if (type === "ready") {
+    workerReady = true;
+    for (const item of pendingChunks) {
+      if (item.chunk) worker.postMessage({ type: "stdin", chunk: item.chunk }, [item.chunk.buffer]);
+    }
+    pendingChunks = [];
+    if (!primeSent) primeNeovim();
+  } else if (type === "clipboard-copy") {
+    const text = (event.data.lines || []).join("\n");
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+  } else if (type === "clipboard-paste") {
+    const req = event.data.requestId;
+    if (navigator.clipboard?.readText) {
+      navigator.clipboard.readText().then(text => {
+        const lines = String(text || "").split(/\r?\n/);
+        sendRpcResponse(req, null, [lines, "v"]);
+      }).catch(() => {
+        sendRpcResponse(req, null, [[], "v"]);
+      });
+    } else {
+      sendRpcResponse(req, null, [[], "v"]);
+    }
+  } else if (type === "fatal") {
+    console.error("Neovim WASM Fatal:", event.data.message);
+    document.getElementById("hud-status").className = "hud-status fail";
+    document.getElementById("hud-status").textContent = `Neovim WASM Error: ${event.data.message}`;
+  }
+}
+
+function renderGrid(cells = [], cursor = null, cursorHlId = 0, mode = "normal", hls = {}) {
+  const rows = Array.isArray(cells) && cells.length ? cells : [];
+  const cur = cursor || { row: 0, col: 0 };
+  const row = Math.max(0, Math.min(cur.row || 0, rows.length ? rows.length - 1 : 0));
+  const col = Math.max(0, cur.col || 0);
+  const hlMap = hls || {};
+
+  cursorBadge.textContent = `ln ${row + 1}, col ${col + 1}`;
+  updateModeBadge(mode);
+
+  let html = "";
+  for (let r = 0; r < rows.length; r += 1) {
+    const rowCells = Array.isArray(rows[r]) ? rows[r] : [];
+    const lineLen = rowCells.length;
+    for (let c = 0; c < lineLen; c += 1) {
+      const cell = rowCells[c] || {};
+      const ch = escapeChar(cell.ch || " ");
+      const isCursor = (r === row && c === col);
+      const attr = isCursor ? getHl(hlMap, cursorHlId, true) : getHl(hlMap, cell.hl, false);
+      const style = styleFromHl(attr);
+
+      if (isCursor) {
+        html += `<span class="cursor" style="${style}">${ch}</span>`;
+      } else if (style) {
+        html += `<span style="${style}">${ch}</span>`;
+      } else {
+        html += ch;
+      }
+    }
+    if (r === row && col >= lineLen) {
+      html += " ".repeat(col - lineLen);
+      html += `<span class="cursor"> </span>`;
+    }
+    if (r < rows.length - 1) html += "\n";
+  }
+
+  gridEl.innerHTML = html || " ";
+}
+
+function updateModeBadge(mode) {
+  const m = String(mode || "normal").toLowerCase();
+  modeBadge.textContent = m.toUpperCase();
+  if (m.includes("insert")) {
+    modeBadge.className = "nvim-mode mode-insert";
+  } else if (m.includes("visual")) {
+    modeBadge.className = "nvim-mode mode-visual";
+  } else if (m.includes("cmd") || m.includes("command")) {
+    modeBadge.className = "nvim-mode mode-command";
+  } else {
+    modeBadge.className = "nvim-mode mode-normal";
+  }
+}
+
+function escapeChar(ch) {
+  if (ch === "&") return "&amp;";
+  if (ch === "<") return "&lt;";
+  if (ch === ">") return "&gt;";
+  if (ch === "\"") return "&quot;";
+  return ch;
+}
+
+function styleFromHl(attr) {
+  if (!attr) return "";
+  const parts = [];
+  if (attr.reverse) {
+    const fg = attr.background || "#ffffff";
+    const bg = attr.foreground || "#000000";
+    parts.push(`color:${fg}`);
+    parts.push(`background:${bg}`);
+  } else {
+    if (attr.foreground) parts.push(`color:${attr.foreground}`);
+    if (attr.background && attr.background !== "#ffffff") parts.push(`background:${attr.background}`);
+  }
+  if (attr.bold) parts.push("font-weight:700");
+  if (attr.italic) parts.push("font-style:italic");
+  if (attr.underline) parts.push("text-decoration:underline");
+  return parts.join(";");
+}
+
+function getHl(map, id, isCursor) {
+  const key = id != null && map[id] !== undefined ? id : String(id);
+  const hl = (key != null && map[key] !== undefined ? map[key] : null) || map[0] || map["0"] || null;
+  if (!hl) {
+    if (isCursor) return { foreground: "#ffffff", background: "#000000", reverse: true };
+    return null;
+  }
+  const reverse = Boolean(hl.reverse) || isCursor;
+  return { ...hl, reverse };
+}
+
+function translateKey(ev) {
+  const key = ev.key;
+  if (key === "Backspace") return "<BS>";
+  if (key === "Enter") return ev.ctrlKey ? "<C-CR>" : "<CR>";
+  if (key === "Tab") return ev.shiftKey ? "<S-Tab>" : "<Tab>";
+  if (key === "Escape") return "<Esc>";
+  if (key === "ArrowUp") return "<Up>";
+  if (key === "ArrowDown") return "<Down>";
+  if (key === "ArrowLeft") return "<Left>";
+  if (key === "ArrowRight") return "<Right>";
+  if (key === "PageUp") return "<PageUp>";
+  if (key === "PageDown") return "<PageDown>";
+  if (key === "Home") return "<Home>";
+  if (key === "End") return "<End>";
+  if (key === "Delete") return "<Del>";
+  if (key === "Insert") return "<Ins>";
+
+  if (ev.ctrlKey && key.length === 1) {
+    const k = key.toLowerCase();
+    if (k === "[") return "<Esc>";
+    return `<C-${k}>`;
+  }
+  if (ev.altKey && key.length === 1) {
+    return `<M-${key}>`;
+  }
+  if (key && key.length === 1) {
+    if (key === "<") return "<lt>";
+    return key;
+  }
+  return null;
+}
+
+gridEl.addEventListener("click", () => {
+  gridEl.focus();
 });
 
-// Update Neovim statusline cursor coordinates
-editor.on("cursorActivity", () => {
-  const pos = editor.getCursor();
-  document.getElementById("nvim-cursor").textContent = `ln ${pos.line + 1}, col ${pos.ch + 1}`;
+gridEl.addEventListener("keydown", (ev) => {
+  if (isHelpOpen()) {
+    if (ev.key === "Escape" || ev.key === "q" || (ev.ctrlKey && ev.key === "[")) {
+      ev.preventDefault();
+      closeHelp();
+      return;
+    }
+  }
+
+  // Ctrl-Enter trigger
+  if (ev.key === "Enter" && ev.ctrlKey) {
+    ev.preventDefault();
+    triggerRun();
+    return;
+  }
+
+  const keys = translateKey(ev);
+  if (!keys) return;
+  ev.preventDefault();
+  enqueueInput(keys);
 });
 
-// Update Neovim statusline mode badge
-editor.on("vim-mode-change", (e) => {
-  const badge = document.getElementById("nvim-mode");
-  if (e.mode === "normal") {
-    badge.textContent = "NORMAL";
-    badge.className = "nvim-mode mode-normal";
-  } else if (e.mode === "insert") {
-    badge.textContent = "INSERT";
-    badge.className = "nvim-mode mode-insert";
-  } else if (e.mode === "visual") {
-    badge.textContent = "VISUAL";
-    badge.className = "nvim-mode mode-visual";
+// Resize Neovim linegrid when window changes size
+window.addEventListener("resize", () => {
+  if (!workerReady) return;
+  const dims = computeGridDimensions();
+  if (dims.cols !== cols || dims.rows !== rows) {
+    cols = dims.cols;
+    rows = dims.rows;
+    sendRpc("nvim_ui_try_resize", [cols, rows]);
   }
 });
 
-// Help Drawer Controls
+/* --- Floating Help Drawer (:help) --- */
 function openHelp() {
   document.getElementById("help-drawer").classList.remove("hidden");
 }
 function closeHelp() {
   document.getElementById("help-drawer").classList.add("hidden");
-  editor.focus();
+  gridEl.focus();
 }
 function isHelpOpen() {
   return !document.getElementById("help-drawer").classList.contains("hidden");
@@ -940,39 +1347,10 @@ function isHelpOpen() {
 document.getElementById("help-btn").addEventListener("click", () => openHelp());
 document.getElementById("help-close-btn").addEventListener("click", () => closeHelp());
 
-// Custom Neovim Ex Commands: `:w`, `:next`, `:prev`, `:help`, `:q`
-CodeMirror.Vim.defineEx("write", "w", () => {
-  runPath();
-});
-CodeMirror.Vim.defineEx("next", "n", () => {
-  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
-});
-CodeMirror.Vim.defineEx("prev", "p", () => {
-  if (levelIdx > 0) loadLevel(levelIdx - 1);
-});
-CodeMirror.Vim.defineEx("help", "h", () => {
-  openHelp();
-});
-CodeMirror.Vim.defineEx("quit", "q", () => {
-  if (isHelpOpen()) closeHelp();
-});
-CodeMirror.Vim.defineEx("close", "c", () => {
-  if (isHelpOpen()) closeHelp();
-});
-
-// Keyboard & button triggers
-document.getElementById("run-trigger").addEventListener("click", () => runPath());
-editor.setOption("extraKeys", {
-  "Ctrl-Enter": () => runPath(),
-  "Cmd-Enter": () => runPath(),
-  "Esc": (cm) => {
-    if (isHelpOpen()) closeHelp();
-    return CodeMirror.Pass;
-  }
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && isHelpOpen()) closeHelp();
-});
+function triggerRun() {
+  enqueueInput(":w<CR>");
+}
+document.getElementById("run-trigger").addEventListener("click", () => triggerRun());
 
 /* ========================================================================= */
 /* 6. GAME FLOW & EXECUTION                                                 */
@@ -992,9 +1370,8 @@ function updateReadout(res) {
     `<span>ghost <b>${holo}</b></span>`;
 }
 
-function runPath() {
+function runPathWithText(src) {
   const lvl = LEVELS[levelIdx];
-  const src = editor.getValue();
   const { cmds, errors } = parseCppProgram(src);
   const statusEl = document.getElementById("hud-status");
 
@@ -1054,8 +1431,13 @@ function renderWaypoints() {
   container.innerHTML = LEVELS.map((lvl, idx) => {
     const isAct = idx === levelIdx ? "active" : "";
     const isDone = completed[idx] ? "✓ " : "";
-    return `<button class="waypoint-btn ${isAct}" onclick="loadLevel(${idx})">${isDone}${idx + 1}</button>`;
+    return `<button class="waypoint-btn ${isAct}" id="wp-btn-${idx}">${isDone}${idx + 1}</button>`;
   }).join("");
+
+  LEVELS.forEach((_, idx) => {
+    const btn = document.getElementById(`wp-btn-${idx}`);
+    if (btn) btn.onclick = () => loadLevel(idx);
+  });
 }
 
 function loadLevel(idx) {
@@ -1071,15 +1453,19 @@ function loadLevel(idx) {
   document.getElementById("hud-status").className = "hud-status";
   document.getElementById("hud-status").textContent = "Type :w to run · :help for manual";
 
-  editor.setValue(lvl.code);
   renderWaypoints();
   updateReadout(null);
   render();
+
+  if (workerReady) {
+    setBufferCode(lvl.code);
+  }
 }
 
-// Initial boot
+// Initial bootstrap
 resizeCanvas();
-loadLevel(0);
+renderWaypoints();
+startNeovimWasm();
 </script>
 </body>
 </html>
