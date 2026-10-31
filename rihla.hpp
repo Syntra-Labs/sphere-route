@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm>
 
 /**
  * @file rihla.hpp
@@ -63,3 +64,14 @@ inline void clear_log() {
 } // namespace rihla
 
 using namespace rihla;
+using std::pow;
+using std::sqrt;
+using std::abs;
+using std::sin;
+using std::cos;
+using std::tan;
+using std::asin;
+using std::acos;
+using std::atan2;
+using std::min;
+using std::max;

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rihla — Spherical Path Studio</title>
+<title>Rihla — Spherical Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 <!-- CodeMirror & Vim Mode CDN -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
@@ -17,40 +17,35 @@
 
 <style>
 :root {
-  --night: #090d16;
-  --night-2: #0e1422;
-  --panel: #131b2e;
-  --line: #1c2740;
-  --ink: #e9e3d3;
-  --ink-dim: #8b96af;
-  --brass: #c9a557;
-  --brass-dim: #796434;
-  --teal: #5fd4c4;
-  --teal-dim: #255d55;
-  --crimson: #e2556a;
-  --crimson-dim: #6d2432;
-  --violet: #8f7bd8;
-  --serif: "Cormorant Garamond", Georgia, serif;
-  --sans: "Source Sans 3", system-ui, sans-serif;
+  --bg: #000000;
+  --bg-subtle: #080808;
+  --panel: #0d0d0d;
+  --panel-2: #141414;
+  --line: #222222;
+  --line-strong: #383838;
+  --fg: #ffffff;
+  --fg-dim: #777777;
+  --fg-muted: #555555;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --sans: "Inter", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--night); color: var(--ink); font-family: var(--sans); }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--sans); }
 
-/* --- 50/50 Vertical Split Container --- */
+/* --- 50/50 Vertical Split --- */
 .split-container {
   display: flex;
   width: 100vw;
   height: 100vh;
 }
 
-/* --- Left Pane: Sphere Viewer --- */
+/* --- Left Pane: Sphere Studio --- */
 .sphere-pane {
   flex: 1;
   height: 100vh;
   position: relative;
-  background: radial-gradient(circle at 50% 50%, #101830 0%, #080c16 80%);
+  background: radial-gradient(circle at 50% 50%, #0d0d0d 0%, #000000 85%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,8 +63,8 @@ canvas#sky.dragging { cursor: grabbing; }
 .hud-top {
   position: absolute;
   top: 18px;
-  left: 22px;
-  right: 22px;
+  left: 24px;
+  right: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -77,88 +72,84 @@ canvas#sky.dragging { cursor: grabbing; }
   z-index: 10;
 }
 .hud-title-group h1 {
-  font-family: var(--serif);
-  font-size: 26px;
+  font-family: var(--mono);
+  font-size: 15px;
   font-weight: 600;
-  color: var(--ink);
-  letter-spacing: .02em;
-}
-.hud-title-group h1 em {
-  color: var(--brass);
-  font-style: italic;
+  color: var(--fg);
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 .hud-spec {
   font-family: var(--mono);
   font-size: 12px;
-  color: var(--ink-dim);
+  color: var(--fg-dim);
   margin-top: 4px;
 }
-.hud-spec .kw { color: var(--brass); font-weight: 500; }
 
 .hud-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   pointer-events: auto;
 }
 .waypoint-btn {
-  background: var(--night-2);
+  background: var(--panel);
   border: 1px solid var(--line);
-  color: var(--ink-dim);
+  color: var(--fg-dim);
   font-family: var(--mono);
   font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 4px 9px;
+  border-radius: 2px;
   cursor: pointer;
-  transition: all .2s;
+  transition: all .15s;
 }
-.waypoint-btn:hover { border-color: var(--brass); color: var(--ink); }
-.waypoint-btn.active { border-color: var(--teal); color: var(--teal); font-weight: 600; }
+.waypoint-btn:hover { border-color: var(--fg); color: var(--fg); }
+.waypoint-btn.active { border-color: var(--fg); color: var(--bg); background: var(--fg); font-weight: 600; }
 
 /* Bottom HUD */
 .hud-bottom {
   position: absolute;
   bottom: 16px;
-  left: 22px;
-  right: 22px;
+  left: 24px;
+  right: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   pointer-events: none;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   z-index: 10;
 }
 .hud-readout {
   display: flex;
   gap: 16px;
-  color: var(--ink-dim);
-  background: rgba(10, 15, 26, 0.75);
+  color: var(--fg-dim);
+  background: rgba(8, 8, 8, 0.85);
   padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid rgba(28, 39, 64, 0.6);
-  backdrop-filter: blur(8px);
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
 }
-.hud-readout b { color: var(--ink); font-weight: 500; }
+.hud-readout b { color: var(--fg); font-weight: 500; }
 .hud-status {
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
-  backdrop-filter: blur(8px);
-  background: rgba(10, 15, 26, 0.75);
+  backdrop-filter: blur(6px);
+  background: rgba(8, 8, 8, 0.85);
   border: 1px solid var(--line);
-  color: var(--ink-dim);
+  color: var(--fg-dim);
 }
 .hud-status.pass {
-  border-color: var(--teal-dim);
-  color: var(--teal);
-  background: rgba(95, 212, 196, 0.1);
+  border-color: var(--fg);
+  color: var(--bg);
+  background: var(--fg);
 }
 .hud-status.fail {
-  border-color: var(--crimson-dim);
-  color: var(--crimson);
-  background: rgba(226, 85, 106, 0.1);
+  border-color: var(--line-strong);
+  color: var(--fg);
+  background: #181818;
 }
 
 /* --- Right Pane: Neovim Editor --- */
@@ -168,116 +159,176 @@ canvas#sky.dragging { cursor: grabbing; }
   border-left: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  background: #0d1424;
+  background: var(--bg);
+  position: relative;
 }
 
-/* CodeMirror Neovim Custom Theme */
+/* CodeMirror Neovim Monochrome Theme */
 .CodeMirror {
   flex: 1;
   height: auto;
   font-family: var(--mono);
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.65;
-  background: #0d1424 !important;
-  color: var(--ink) !important;
+  background: var(--bg) !important;
+  color: var(--fg) !important;
 }
 .CodeMirror-gutters {
-  background: #090e1b !important;
-  border-right: 1px solid #172238 !important;
+  background: var(--bg-subtle) !important;
+  border-right: 1px solid var(--line) !important;
 }
 .CodeMirror-linenumber {
-  color: #3b4b6d !important;
+  color: var(--fg-muted) !important;
   padding: 0 10px 0 6px !important;
 }
 .CodeMirror-cursor {
-  border-left: 2px solid var(--teal) !important;
+  border-left: 2px solid #ffffff !important;
 }
 .cm-fat-cursor .CodeMirror-cursor {
-  background: var(--brass) !important;
-  opacity: 0.75 !important;
+  background: #ffffff !important;
+  opacity: 0.9 !important;
 }
 .cm-animate-fat-cursor {
-  background-color: var(--brass) !important;
-  opacity: 0.75 !important;
+  background-color: #ffffff !important;
+  opacity: 0.9 !important;
 }
 
-/* C++ Syntax Highlighting */
-.cm-s-default .cm-keyword { color: var(--brass); font-weight: 600; }
-.cm-s-default .cm-def { color: var(--teal); font-weight: 600; }
-.cm-s-default .cm-variable { color: var(--ink); }
-.cm-s-default .cm-variable-2 { color: #b8c7e0; }
-.cm-s-default .cm-number { color: #f1b37b; }
-.cm-s-default .cm-comment { color: #536488; font-style: italic; }
-.cm-s-default .cm-string { color: var(--violet); }
-.cm-s-default .cm-operator { color: var(--teal); }
-.cm-s-default .cm-meta { color: #9aa8c7; }
+/* Monochrome Syntax Highlighting */
+.cm-s-default .cm-keyword { color: #ffffff; font-weight: 700; }
+.cm-s-default .cm-def { color: #ffffff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.cm-s-default .cm-variable { color: #e6e6e6; }
+.cm-s-default .cm-variable-2 { color: #c4c4c4; }
+.cm-s-default .cm-number { color: #ffffff; font-weight: 500; }
+.cm-s-default .cm-comment { color: #555555; font-style: italic; }
+.cm-s-default .cm-string { color: #a0a0a0; }
+.cm-s-default .cm-operator { color: #ffffff; font-weight: 600; }
+.cm-s-default .cm-meta { color: #777777; }
 
 /* Neovim Statusline */
 .nvim-statusline {
-  height: 28px;
-  background: #090e1b;
-  border-top: 1px solid #1a253d;
+  height: 26px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   user-select: none;
 }
 .nvim-mode {
-  padding: 0 12px;
+  padding: 0 10px;
   height: 100%;
   display: flex;
   align-items: center;
-  font-weight: 600;
-  letter-spacing: .05em;
-  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  font-size: 10.5px;
 }
-.mode-normal { background: var(--brass); color: #0b0f1a; }
-.mode-insert { background: var(--teal); color: #041a17; }
-.mode-visual { background: var(--violet); color: #0e091d; }
+.mode-normal { background: #ffffff; color: #000000; }
+.mode-insert { background: #777777; color: #000000; }
+.mode-visual { background: #444444; color: #ffffff; }
 
 .nvim-file {
-  color: var(--ink-dim);
-  padding: 0 12px;
+  color: var(--fg-dim);
+  padding: 0 10px;
 }
-.nvim-file b { color: var(--ink); font-weight: 500; }
+.nvim-file b { color: var(--fg); font-weight: 600; }
 
 .nvim-info {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  color: var(--ink-dim);
-  padding-right: 12px;
+  color: var(--fg-dim);
+  padding-right: 10px;
 }
-.nvim-run-btn {
-  background: #141f36;
-  border: 1px solid var(--line);
-  color: var(--teal);
+.nvim-btn {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--fg);
   font-family: var(--mono);
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 3px;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 2px;
   cursor: pointer;
+  transition: all .15s;
 }
-.nvim-run-btn:hover { background: var(--teal); color: #041a17; }
+.nvim-btn:hover { background: #ffffff; color: #000000; border-color: #ffffff; }
 
-/* CodeMirror Dialog (Vim Ex Command Bar `:`) */
+/* CodeMirror Dialog (Vim Command Bar `:`) */
 .CodeMirror-dialog {
-  background: #090e1b !important;
-  color: var(--ink) !important;
+  background: #080808 !important;
+  color: #ffffff !important;
   border-top: 1px solid var(--line) !important;
   font-family: var(--mono) !important;
-  font-size: 13px !important;
-  padding: 4px 10px !important;
+  font-size: 12.5px !important;
+  padding: 3px 8px !important;
 }
 .CodeMirror-dialog input {
   background: transparent !important;
-  color: var(--teal) !important;
+  color: #ffffff !important;
   font-family: var(--mono) !important;
-  font-size: 13px !important;
+  font-size: 12.5px !important;
   outline: none !important;
   border: none !important;
+}
+
+/* --- Neovim Floating Help Window (:help) --- */
+.help-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line-strong);
+  font-family: var(--mono);
+  padding: 0;
+}
+.help-overlay.hidden { display: none; }
+.help-header {
+  height: 28px;
+  background: #111111;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+.help-header b { color: #ffffff; }
+.help-close-btn {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-family: var(--mono);
+  cursor: pointer;
+  font-size: 11px;
+}
+.help-close-btn:hover { color: #ffffff; }
+.help-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #d0d0d0;
+  white-space: pre-wrap;
+}
+.help-body h2 {
+  font-size: 14px;
+  color: #ffffff;
+  margin: 14px 0 6px;
+  border-bottom: 1px solid #222222;
+  padding-bottom: 3px;
+  font-weight: 600;
+}
+.help-body code {
+  color: #ffffff;
+  background: #181818;
+  padding: 1px 4px;
+  border-radius: 2px;
 }
 </style>
 </head>
@@ -289,7 +340,7 @@ canvas#sky.dragging { cursor: grabbing; }
   <div class="sphere-pane" id="sphere-pane">
     <div class="hud-top">
       <div class="hud-title-group">
-        <h1><em>Rihla</em> · <span id="hud-level-title">First Steps</span></h1>
+        <h1>RIHLA · <span id="hud-level-title">First Steps</span></h1>
         <div class="hud-spec" id="hud-spec">reach(60°N, 0°) within 3°</div>
       </div>
       <div class="hud-actions" id="hud-waypoints"></div>
@@ -304,19 +355,87 @@ canvas#sky.dragging { cursor: grabbing; }
         <span>len <b>0°</b></span>
         <span>holonomy <b>—</b></span>
       </div>
-      <div class="hud-status" id="hud-status">Type :w to compile &amp; run</div>
+      <div class="hud-status" id="hud-status">Type :w to run · :help for manual</div>
     </div>
   </div>
 
   <!-- RIGHT PANE: NEOVIM TEXT ENTRY -->
-  <div class="editor-pane">
+  <div class="editor-pane" id="editor-pane">
     <textarea id="nvim-editor"></textarea>
+    
+    <!-- Help Drawer (:help) -->
+    <div class="help-overlay hidden" id="help-drawer">
+      <div class="help-header">
+        <span><b>help.txt</b> [RO] — RIHLA REFERENCE MANUAL</span>
+        <button class="help-close-btn" id="help-close-btn">[x] :q</button>
+      </div>
+      <div class="help-body" id="help-text">
+*rihla.txt*   Spherical Path Studio Manual
+
+==============================================================================
+1. C++ SPHERICAL PRIMITIVES                                      *primitives*
+
+  forward({deg});          Walk {deg} degrees along the current great circle.
+                           Also aliased as: fd({deg});
+                           Constraint: 0 < {deg} <= 360.
+
+  turn({deg});             Rotate heading inside the local tangent plane.
+                           Also aliased as: t({deg});
+                           Positive = left (counterclockwise).
+                           Negative = right (clockwise).
+
+==============================================================================
+2. STANDARD MATH LIBRARY (<cmath>)                                   *cmath*
+
+  The full standard math environment is injected and ready to use:
+
+  pow(base, exp)           Computes base^exp (e.g., pow(2.0, 3.0) == 8.0).
+  sqrt(x)                  Square root of x.
+  abs(x)                   Absolute value of x.
+  sin(x), cos(x), tan(x)   Trigonometric functions (radians).
+  asin(x), acos(x)         Inverse trigonometric functions.
+  atan2(y, x)              Two-argument arctangent.
+  floor(x), ceil(x)        Rounding functions.
+  min(a, b), max(a, b)     Minimum and maximum.
+  M_PI                     Constant pi (3.141592653589793).
+
+  Both `pow(...)` and `std::pow(...)` namespaces are supported.
+
+==============================================================================
+3. NEOVIM COMMANDS & SHORTCUTS                                    *commands*
+
+  :w, :write               Compile and execute the path on the sphere.
+  :n, :next                Advance to the next waypoint (if verified).
+  :p, :prev                Navigate back to the previous waypoint.
+  :h, :help                Open this reference manual buffer.
+  :q, :close               Close this reference manual buffer.
+  <Ctrl-Enter>             Execute path without leaving Insert mode.
+
+==============================================================================
+4. C++ CONTROL FLOW & SYNTAX                                        *syntax*
+
+  Standard C++ functions, loops, and variables are supported:
+
+      #include <rihla.hpp>
+
+      void path() {
+          double radius = pow(2.0, 5.0); // 32 degrees
+          for (int i = 0; i < 3; ++i) {
+              forward(radius);
+              turn(90.0);
+          }
+      }
+      </div>
+    </div>
+
+    <!-- Statusline -->
     <div class="nvim-statusline">
       <div class="nvim-mode mode-normal" id="nvim-mode">NORMAL</div>
       <div class="nvim-file"><b>path.cpp</b> [C++]</div>
       <div class="nvim-info">
         <span id="nvim-cursor">ln 1, col 1</span>
-        <button class="nvim-run-btn" id="run-trigger" title="Or type :w in Normal Mode">Run (:w)</button>
+        <button class="nvim-btn" id="help-btn">:help</button>
+        <button class="nvim-btn" id="run-trigger">:w</button>
       </div>
     </div>
   </div>
@@ -327,7 +446,7 @@ canvas#sky.dragging { cursor: grabbing; }
 "use strict";
 
 /* ========================================================================= */
-/* 1. SPHERICAL GEOMETRY ENGINE                                             */
+/* 1. SPHERICAL GEOMETRY ENGINE (MONOCHROME MATH)                           */
 /* ========================================================================= */
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 const V = {
@@ -386,7 +505,7 @@ function signedAngleAt(u, v, p) {
 }
 
 /* ========================================================================= */
-/* 2. C++ DSL COMPILER & SIMULATOR                                          */
+/* 2. C++ DSL COMPILER & SIMULATOR WITH <cmath> INJECTIONS                  */
 /* ========================================================================= */
 function parseCppProgram(src) {
   const cmds = [], errors = [];
@@ -417,7 +536,9 @@ function parseCppProgram(src) {
   let js = src;
   // Handle bare commands: forward 60; -> forward(60);
   js = js.replace(/^\s*(forward|fd|turn|t)\s+([-\d.]+)\s*;?\s*$/gmi, "$1($2);");
-  // Strip preprocessor headers
+  // Strip std:: namespace qualifier (e.g. std::pow -> pow, std::sqrt -> sqrt)
+  js = js.replace(/\bstd::/g, "");
+  // Strip preprocessor headers (#include <...>, #define, etc.)
   js = js.replace(/^\s*#.*$/gm, "");
   // Strip using namespace ...;
   js = js.replace(/^\s*using\s+namespace\s+[^;]+;/gm, "");
@@ -427,8 +548,16 @@ function parseCppProgram(src) {
   js = js.replace(/\b(int|double|float|auto|size_t)\s+/g, "let ");
   js = js.replace(/\bconst\s+(int|double|float|auto|size_t)\s+/g, "const ");
 
+  // Standard <cmath> functions injected into scope
+  const cmathScope = `
+    const { pow, sqrt, abs, sin, cos, tan, asin, acos, atan2, floor, ceil, min, max, exp, log, PI } = Math;
+    const M_PI = Math.PI;
+    const std = { pow, sqrt, abs, sin, cos, tan, asin, acos, atan2, floor, ceil, min, max, exp, log };
+  `;
+
   try {
     const fn = new Function("forward", "turn", "fd", "t", `
+      ${cmathScope}
       ${js}
       if (typeof path === "function") path();
       else if (typeof run === "function") run();
@@ -497,10 +626,13 @@ const LEVELS = [
     view: { yaw: 0, pitch: 26 },
     target: { lat: 60, lon: 0, tol: 3 },
     code: `#include <rihla.hpp>
+#include <cmath>
 
 void path() {
-    // Reach the teal target along the meridian
-    forward(60.0);
+    // Reach the target along the meridian
+    // You can use standard math functions like pow(2.0, 3.0), sqrt(x), etc.
+    double dist = pow(7.745966, 2.0); // ~60.0 degrees
+    forward(dist);
 }
 `,
     spec(res) {
@@ -515,9 +647,10 @@ void path() {
     view: { yaw: -24, pitch: 22 },
     target: { lat: 30.0, lon: 54.74, tol: 3 },
     code: `#include <rihla.hpp>
+#include <cmath>
 
 void path() {
-    // Turn and reach the off-meridian target
+    // Turn and reach the target
     turn(-35.0);
     forward(65.0);
 }
@@ -538,6 +671,7 @@ void path() {
     target: { lat: 50, lon: 0, tol: 4 },
     storm: { lat: 0, lon: 0, radius: 20 },
     code: `#include <rihla.hpp>
+#include <cmath>
 
 void path() {
     // Maneuver around the storm at (0, 0)
@@ -569,6 +703,7 @@ void path() {
     view: { yaw: -38, pitch: 30 },
     target: { lat: 0, lon: 0, tol: 3 },
     code: `#include <rihla.hpp>
+#include <cmath>
 
 void path() {
     // 90-90-90 spherical triangle: Gauss-Bonnet holonomy
@@ -593,7 +728,7 @@ let levelIdx = 0;
 const completed = LEVELS.map(() => false);
 
 /* ========================================================================= */
-/* 4. CANVAS RENDERER                                                       */
+/* 4. CANVAS RENDERER (AUSTERE MONOCHROME PALETTE)                          */
 /* ========================================================================= */
 const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
 let view = { yaw: 0, pitch: 20 };
@@ -630,7 +765,7 @@ function drawArcSampled(points, W, Rpx, colorFront, colorBack, width, flags) {
     if (prev) {
       const front = (pr.depth >= 0 && prev.depth >= 0);
       const bad = flags && (flags[i] || flags[i - 1]);
-      ctx.strokeStyle = bad ? (front ? "rgba(226,85,106,.95)" : "rgba(226,85,106,.28)")
+      ctx.strokeStyle = bad ? (front ? "#666666" : "#222222")
                             : (front ? colorFront : colorBack);
       ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(x, y); ctx.stroke();
     }
@@ -648,26 +783,27 @@ function circlePoints(center, radiusDeg, n = 96) {
   }
   return pts;
 }
-function drawMarker(p, W, Rpx, color, r, fill = true, glow = false) {
+function drawMarker(p, W, Rpx, color, r, fill = true, strokeColor = null) {
   const pr = project(p); if (pr.depth < -0.02) return;
   const [x, y] = screen(pr, W, Rpx);
-  if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 14; }
   ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
-  if (fill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke(); }
-  ctx.shadowBlur = 0;
+  if (fill) { ctx.fillStyle = color; ctx.fill(); }
+  if (strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.5; ctx.stroke(); }
 }
-function drawNeedle(p, dir, W, Rpx, color, lenDeg) {
+function drawNeedle(p, dir, W, Rpx, color, lenDeg, dashed = false) {
   const pr = project(p); if (pr.depth < 0) return;
   const tip = V.norm(V.add(V.scale(p, Math.cos(lenDeg * D2R)), V.scale(dir, Math.sin(lenDeg * D2R))));
   const pt = project(tip);
   const [x0, y0] = screen(pr, W, Rpx), [x1, y1] = screen(pt, W, Rpx);
-  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+  if (dashed) ctx.setLineDash([4, 3]); else ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.setLineDash([]);
   const ang = Math.atan2(y1 - y0, x1 - x0);
   ctx.beginPath();
   ctx.moveTo(x1, y1);
-  ctx.lineTo(x1 - 9 * Math.cos(ang - 0.42), y1 - 9 * Math.sin(ang - 0.42));
-  ctx.lineTo(x1 - 9 * Math.cos(ang + 0.42), y1 - 9 * Math.sin(ang + 0.42));
+  ctx.lineTo(x1 - 8 * Math.cos(ang - 0.45), y1 - 8 * Math.sin(ang - 0.45));
+  ctx.lineTo(x1 - 8 * Math.cos(ang + 0.45), y1 - 8 * Math.sin(ang + 0.45));
   ctx.closePath(); ctx.fillStyle = color; ctx.fill();
 }
 
@@ -677,61 +813,61 @@ function render() {
   ctx.clearRect(0, 0, W, W);
   const lvl = LEVELS[levelIdx];
 
-  // Sphere base disk
-  const g = ctx.createRadialGradient(W / 2 - Rpx * 0.3, W / 2 - Rpx * 0.35, Rpx * 0.1, W / 2, W / 2, Rpx * 1.05);
-  g.addColorStop(0, "#19243d");
-  g.addColorStop(0.7, "#121b2f");
-  g.addColorStop(1, "#0a101d");
+  // Sphere base disk (monochrome deep obsidian)
+  const g = ctx.createRadialGradient(W / 2 - Rpx * 0.25, W / 2 - Rpx * 0.3, Rpx * 0.1, W / 2, W / 2, Rpx * 1.05);
+  g.addColorStop(0, "#141414");
+  g.addColorStop(0.7, "#090909");
+  g.addColorStop(1, "#000000");
   ctx.beginPath(); ctx.arc(W / 2, W / 2, Rpx, 0, 2 * Math.PI); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = "rgba(201,165,87,.45)"; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = "#383838"; ctx.lineWidth = 1.2; ctx.stroke();
 
   // Graticule latitudes
   for (let lat = -60; lat <= 60; lat += 30) {
     const pts = []; for (let lon = 0; lon <= 360; lon += 4) pts.push(ll(lat, lon));
-    drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(201,165,87,.4)" : "rgba(201,165,87,.14)", "rgba(201,165,87,.04)", lat === 0 ? 1.4 : 1);
+    drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(255,255,255,.32)" : "rgba(255,255,255,.11)", "rgba(255,255,255,.03)", lat === 0 ? 1.2 : 0.8);
   }
   // Graticule meridians
   for (let lon = 0; lon < 180; lon += 30) {
     const pts = []; for (let lat = -90; lat <= 90; lat += 4) { pts.push(ll(lat, lon)); }
     for (let lat = 90; lat >= -90; lat -= 4) { pts.push(ll(lat, lon + 180)); }
-    drawArcSampled(pts, W, Rpx, "rgba(201,165,87,.14)", "rgba(201,165,87,.04)", 1);
+    drawArcSampled(pts, W, Rpx, "rgba(255,255,255,.11)", "rgba(255,255,255,.03)", 0.8);
   }
 
-  // Storm zone
+  // Storm zone (monochrome stippled contour)
   if (lvl.storm) {
     const c = ll(lvl.storm.lat, lvl.storm.lon);
     for (let r = lvl.storm.radius; r > 2; r -= 4) {
-      drawArcSampled(circlePoints(c, r), W, Rpx, "rgba(226,85,106,.34)", "rgba(226,85,106,.08)", r === lvl.storm.radius ? 2 : 1);
+      drawArcSampled(circlePoints(c, r), W, Rpx, "rgba(255,255,255,.2)", "rgba(255,255,255,.05)", r === lvl.storm.radius ? 1.5 : 0.8);
     }
-    drawMarker(c, W, Rpx, "rgba(226,85,106,.9)", 3);
+    drawMarker(c, W, Rpx, "#666666", 3);
   }
 
-  // Target ring
+  // Target ring (crisp white contour)
   if (lvl.target) {
     const t = ll(lvl.target.lat, lvl.target.lon);
-    drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "rgba(95,212,196,.9)", "rgba(95,212,196,.2)", 2);
-    drawMarker(t, W, Rpx, "#5fd4c4", 3, true, true);
+    drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "#ffffff", "rgba(255,255,255,.25)", 1.8);
+    drawMarker(t, W, Rpx, "#ffffff", 3, true);
   }
 
-  // Start position
+  // Start position (white node with outer halo ring)
   const s = ll(lvl.start.lat, lvl.start.lon);
-  drawMarker(s, W, Rpx, "#c9a557", 5, true, true);
+  drawMarker(s, W, Rpx, "#ffffff", 4.5, true, "#888888");
 
-  // Path
+  // Trajectory path (monochrome high-contrast pure white)
   if (lastResult) {
     const n = Math.max(2, Math.floor(lastResult.samples.length * drawProgress));
     const pts = lastResult.samples.slice(0, n).map(o => o.p);
     const flags = violSet ? violSet.slice(0, n) : null;
-    drawArcSampled(pts, W, Rpx, "rgba(95,212,196,.95)", "rgba(95,212,196,.22)", 2.6, flags);
+    drawArcSampled(pts, W, Rpx, "#ffffff", "rgba(255,255,255,.25)", 2.4, flags);
     const endP = pts[pts.length - 1];
-    drawMarker(endP, W, Rpx, "#e9e3d3", 4);
+    drawMarker(endP, W, Rpx, "#ffffff", 3.5);
     if (drawProgress >= 1) {
-      drawNeedle(lastResult.end, lastResult.endHeading, W, Rpx, "#5fd4c4", 10);
-      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W, Rpx, "#c9a557", 10);
+      drawNeedle(lastResult.end, lastResult.endHeading, W, Rpx, "#ffffff", 10);
+      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W, Rpx, "#888888", 10, true);
     }
   } else {
     const h0 = lvl.start.heading === "east" ? eastAt(s) : northAt(s);
-    drawNeedle(s, h0, W, Rpx, "#5fd4c4", 10);
+    drawNeedle(s, h0, W, Rpx, "#ffffff", 10);
   }
 }
 
@@ -750,7 +886,7 @@ cv.addEventListener("pointermove", e => {
 cv.addEventListener("pointerup", () => { dragging = false; cv.classList.remove("dragging"); });
 
 /* ========================================================================= */
-/* 5. CODE-MIRROR NEOVIM INTEGRATION                                        */
+/* 5. CODE-MIRROR NEOVIM INTEGRATION & EX COMMANDS                          */
 /* ========================================================================= */
 const editor = CodeMirror.fromTextArea(document.getElementById("nvim-editor"), {
   lineNumbers: true,
@@ -782,7 +918,22 @@ editor.on("vim-mode-change", (e) => {
   }
 });
 
-// Custom Neovim Ex Commands: `:w`, `:next`, `:prev`
+// Help Drawer Controls
+function openHelp() {
+  document.getElementById("help-drawer").classList.remove("hidden");
+}
+function closeHelp() {
+  document.getElementById("help-drawer").classList.add("hidden");
+  editor.focus();
+}
+function isHelpOpen() {
+  return !document.getElementById("help-drawer").classList.contains("hidden");
+}
+
+document.getElementById("help-btn").addEventListener("click", () => openHelp());
+document.getElementById("help-close-btn").addEventListener("click", () => closeHelp());
+
+// Custom Neovim Ex Commands: `:w`, `:next`, `:prev`, `:help`, `:q`
 CodeMirror.Vim.defineEx("write", "w", () => {
   runPath();
 });
@@ -792,12 +943,28 @@ CodeMirror.Vim.defineEx("next", "n", () => {
 CodeMirror.Vim.defineEx("prev", "p", () => {
   if (levelIdx > 0) loadLevel(levelIdx - 1);
 });
+CodeMirror.Vim.defineEx("help", "h", () => {
+  openHelp();
+});
+CodeMirror.Vim.defineEx("quit", "q", () => {
+  if (isHelpOpen()) closeHelp();
+});
+CodeMirror.Vim.defineEx("close", "c", () => {
+  if (isHelpOpen()) closeHelp();
+});
 
-// Run trigger via button or keyboard Ctrl+Enter
+// Keyboard & button triggers
 document.getElementById("run-trigger").addEventListener("click", () => runPath());
 editor.setOption("extraKeys", {
   "Ctrl-Enter": () => runPath(),
-  "Cmd-Enter": () => runPath()
+  "Cmd-Enter": () => runPath(),
+  "Esc": (cm) => {
+    if (isHelpOpen()) closeHelp();
+    return CodeMirror.Pass;
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && isHelpOpen()) closeHelp();
 });
 
 /* ========================================================================= */
@@ -895,7 +1062,7 @@ function loadLevel(idx) {
   document.getElementById("hud-level-title").textContent = lvl.title;
   document.getElementById("hud-spec").textContent = lvl.specText;
   document.getElementById("hud-status").className = "hud-status";
-  document.getElementById("hud-status").textContent = "Type :w to compile & run";
+  document.getElementById("hud-status").textContent = "Type :w to run · :help for manual";
 
   editor.setValue(lvl.code);
   renderWaypoints();
