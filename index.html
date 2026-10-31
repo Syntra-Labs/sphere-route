@@ -1023,6 +1023,13 @@ function enqueueInput(keys) {
     if (keys === "<CR>") {
       const cmd = exCommandAccumulator.trim().toLowerCase();
       exCommandAccumulator = "";
+      if (cmd === ":w" || cmd === ":write") {
+        sendRpc("nvim_input", ["<Esc>"]);
+        sendRpc("nvim_exec_lua", ["return vim.api.nvim_buf_get_lines(0, 0, -1, false)", []]).then(lines => {
+          if (Array.isArray(lines)) runPathWithText(lines.join("\n"));
+        });
+        return;
+      }
       if (cmd === ":h" || cmd === ":help") {
         openHelp();
         return;
@@ -1091,6 +1098,13 @@ function primeNeovim() {
   const lua = `
     local ui_chan = (vim.api.nvim_get_api_info() or {})[1]
     if ui_chan then
+      local function notify_run()
+        vim.bo.modified = false
+        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        vim.rpcnotify(ui_chan, 'sphere_run', lines)
+        print("[sphere-route] path compiled and executed")
+      end
+
       vim.api.nvim_create_autocmd("BufWriteCmd", {
         pattern = "*",
         callback = function(ev)
@@ -1109,7 +1123,6 @@ function primeNeovim() {
         end
       })
 
-      
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "help",
         callback = function(ev)
@@ -1118,6 +1131,8 @@ function primeNeovim() {
         end
       })
 
+      vim.api.nvim_create_user_command("W", notify_run, {})
+      vim.api.nvim_create_user_command("Write", notify_run, {})
       vim.api.nvim_create_user_command("Help", function()
         vim.rpcnotify(ui_chan, 'sphere_help')
       end, {})
@@ -1132,6 +1147,8 @@ function primeNeovim() {
       end, {})
 
       vim.cmd([[
+        cabbrev w W
+        cabbrev write Write
         cabbrev help Help
         cabbrev h Help
         cabbrev next Next
@@ -1158,6 +1175,7 @@ function setBufferCode(codeStr) {
     pcall(vim.api.nvim_buf_set_name, buf, "path.cpp")
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.bo[buf].filetype = "cpp"
+    vim.bo[buf].buftype = "acwrite"
     vim.bo[buf].modified = false
     vim.api.nvim_win_set_cursor(0, {1, 0})
   `;
