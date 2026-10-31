@@ -1,42 +1,40 @@
-# Rihla — Paths on the Sphere
+# Sphere Route
 
-A minimalist, interactive spherical navigation sandbox and spec-verification environment. Write paths in standard **C++** using spherical navigation primitives directly inside **genuine compiled Neovim WebAssembly (wasm32-wasi)**, with live geometric invariant verification rendered on the sphere.
+An interactive 3D globe where you steer paths using **C++** inside an in-browser **Neovim** editor.
 
-**Live GitHub Pages Demo:** [https://syntra-labs.github.io/sphere-route/](https://syntra-labs.github.io/sphere-route/)
-
----
-
-## 50/50 Minimalist Vertical Split & Genuine Neovim WASM
-
-- **Left Split (Sphere Studio):** High-precision spherical vector math engine rendering geodesic arcs, parallel-transported ghost compasses, storm hazard envelopes, and target tolerance rings on a stark monochrome globe.
-- **Right Split (Neovim WebAssembly):** Authentic Neovim compiled to WebAssembly (`wasm32-wasi`), running client-side via a Web Worker without requiring local Neovim installation or server backends.
-- **Black on White Theme:** Stark monochrome aesthetic with dark-mode-free clean typography, statuslines, and cursor rendering.
+**Live Demo:** [https://syntra-labs.github.io/sphere-route/](https://syntra-labs.github.io/sphere-route/)
 
 ---
 
-## C++ Domain-Specific Language (DSL)
+## What It Is
 
-Paths are written in standard C++ with `<rihla.hpp>` and `<cmath>`:
+- **Left Side (3D Globe):** Renders your path, compass heading, obstacles, and targets on a 3D sphere.
+- **Right Side (Neovim):** Real Neovim compiled to WebAssembly running directly in your browser. No server or local installation needed.
+- **Clean Black-and-White Design:** High-contrast layout with a draggable split divider.
+
+---
+
+## How to Write Paths (C++)
+
+Paths are written in standard C++ using simple movement commands:
 
 ```cpp
-#include <rihla.hpp>
+#include <sphere.hpp>
 #include <cmath>
 
-// Primitives:
-void forward(double deg); // Walk deg° along the current great circle (0 < deg <= 360)
-void turn(double deg);    // Rotate heading in the tangent plane (+ left, - right)
+// Move forward across the sphere by degrees (0 to 360):
+void forward(double deg);  // or fd(deg);
 
-// Shorthand aliases:
-void fd(double deg);
-void t(double deg);
+// Turn left (+) or right (-) by degrees:
+void turn(double deg);     // or t(deg);
 
-// Standard Math (<cmath>):
+// Standard math functions from <cmath> work as expected:
 pow(x, y), sqrt(x), abs(x), sin(x), cos(x), tan(x), M_PI
 ```
 
-### Example: Closed 90°-90°-90° Spherical Triangle (Gauss-Bonnet Holonomy)
+### Example: A Triangle on a Sphere
 ```cpp
-#include <rihla.hpp>
+#include <sphere.hpp>
 #include <cmath>
 
 void path() {
@@ -49,19 +47,23 @@ void path() {
 
 ---
 
-## Neovim Ex Commands & Shortcuts
+## Controls & Shortcuts
 
-- `:w` / `:write` — Compile and execute the current C++ path on the sphere.
-- `:n` / `:next` — Advance to the next waypoint (once admissible).
-- `:p` / `:prev` — Navigate to the previous waypoint.
-- `:h` / `:help` — Open the in-editor reference manual buffer.
-- `:q` / `<Esc>` — Close the reference manual buffer.
-- `<Ctrl-Enter>` — Compile and execute without leaving Insert mode.
+| Action | Command / Shortcut | Mode |
+| :--- | :--- | :--- |
+| **Run path on sphere** | `:Run` or `:R` | Command |
+| | `<Space>r` | Normal |
+| | `<F5>` or `<Ctrl-Enter>` | Normal & Insert |
+| | `:w` (saves and runs) | Command |
+| **Open Help** | `:Manual` or `<Space>m` or `<F1>` | Any |
+| **Next Level** | `:Next` or `<Space>n` | Normal |
+| **Previous Level** | `:Prev` or `<Space>p` | Normal |
+| **Standard Neovim** | `:w`, `:help`, `:q`, motions | Standard |
 
 ---
 
-## Architecture & Roadmap
+## How It Works
 
-1. **100% Client-Side on GitHub Pages:** Runs statically in any modern browser without server dependencies or COOP/COEP header requirements (using SAB-free Asyncify Neovim WASM).
-2. **Neovim msgpack-RPC Bridge:** Editor keystrokes and UI redraws communicate with the WebAssembly worker via binary msgpack-RPC over `postMessage`.
-3. **Future Custom `synvim` WASM Build:** Tracked in [Syntra-Labs/sphere-route#1](https://github.com/Syntra-Labs/sphere-route/issues/1) and [Syntra-Labs/synvim#2](https://github.com/Syntra-Labs/synvim/issues/2), the default Neovim WebAssembly binary and runtime will eventually be replaced with a sovereign [synvim](https://github.com/Syntra-Labs/synvim) WASM build.
+1. **Runs in Any Browser:** Runs entirely on GitHub Pages as static WebAssembly and JavaScript.
+2. **Neovim RPC:** Keypresses and screen updates communicate with the Neovim WASM worker through binary msgpack-RPC.
+3. **Future Synvim WASM:** The editor will later use a custom WebAssembly build of [synvim](https://github.com/Syntra-Labs/synvim).

@@ -967,13 +967,13 @@ function buildFs(entries) {
   ensureDir(root, "home/.config");
   ensureDir(root, "home/.local/share");
   ensureDir(root, "home/.local/state");
-  const starterCode = `#include <rihla.hpp>
+  const starterCode = `#include <sphere.hpp>
 #include <cmath>
 
 void path() {
-    // Reach the target along the meridian
-    // Standard math functions like sin(), cos(), pow() are available
-    forward(M_PI / 2.0);
+    // Steer towards the target
+    // Math functions like pow(), sqrt(), sin() are available
+    forward(60.0);
 }
 `;
   root.contents.set("path.cpp", new File(new TextEncoder().encode(starterCode)));
