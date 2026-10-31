@@ -3,752 +3,909 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rihla — paths on the sphere</title>
+<title>Rihla — Spherical Path Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- CodeMirror & Vim Mode CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/keymap/vim.min.js"></script>
+
 <style>
-:root{
-  --night:#0d1220;
-  --night-2:#131a2c;
-  --panel:#171f33;
-  --panel-2:#1d2740;
-  --line:#2a3654;
-  --ink:#e9e3d3;
-  --ink-dim:#9aa3b8;
-  --brass:#c9a557;
-  --brass-dim:#8a7440;
-  --teal:#5fd4c4;
-  --teal-dim:#2e6f68;
-  --crimson:#e2556a;
-  --crimson-dim:#7a3242;
-  --violet:#8f7bd8;
-  --serif:"Cormorant Garamond", Georgia, "Times New Roman", serif;
-  --sans:"Source Sans 3", system-ui, -apple-system, sans-serif;
-  --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+:root {
+  --night: #090d16;
+  --night-2: #0e1422;
+  --panel: #131b2e;
+  --line: #1c2740;
+  --ink: #e9e3d3;
+  --ink-dim: #8b96af;
+  --brass: #c9a557;
+  --brass-dim: #796434;
+  --teal: #5fd4c4;
+  --teal-dim: #255d55;
+  --crimson: #e2556a;
+  --crimson-dim: #6d2432;
+  --violet: #8f7bd8;
+  --serif: "Cormorant Garamond", Georgia, serif;
+  --sans: "Source Sans 3", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 }
-*{box-sizing:border-box; margin:0; padding:0}
-html,body{background:var(--night); color:var(--ink); font-family:var(--sans); min-height:100%}
-body{padding:20px 22px 60px}
 
-header.top{display:flex; align-items:baseline; gap:16px; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:18px; flex-wrap:wrap}
-header.top h1{font-family:var(--serif); font-weight:600; font-size:34px; letter-spacing:.02em}
-header.top h1 em{color:var(--brass); font-style:italic}
-header.top .sub{color:var(--ink-dim); font-size:14px}
-.progress{margin-left:auto; display:flex; gap:8px; align-items:center}
-.progress .dot{width:10px; height:10px; border-radius:50%; border:1px solid var(--brass-dim); background:transparent; transition:all .3s}
-.progress .dot.done{background:var(--brass); border-color:var(--brass)}
-.progress .dot.now{border-color:var(--teal); box-shadow:0 0 8px var(--teal-dim); background:var(--teal)}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--night); color: var(--ink); font-family: var(--sans); }
 
-.layout{display:grid; grid-template-columns:minmax(340px, 560px) minmax(360px, 1fr); gap:22px; align-items:start}
-@media (max-width:900px){ .layout{grid-template-columns:1fr} }
+/* --- 50/50 Vertical Split Container --- */
+.split-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
 
-.spherewrap{position:sticky; top:14px}
-@media (max-width:900px){ .spherewrap{position:static} }
-canvas#sky{width:100%; aspect-ratio:1/1; display:block; border-radius:10px; background:radial-gradient(circle at 50% 42%, #101830 0%, #0b101d 70%); border:1px solid var(--line); cursor:grab; touch-action:none}
-canvas#sky.dragging{cursor:grabbing}
-.readout{display:flex; flex-wrap:wrap; gap:6px 22px; font-family:var(--mono); font-size:12px; color:var(--ink-dim); padding:10px 4px 0}
-.readout b{color:var(--ink); font-weight:500}
-.readout .holo b{color:var(--brass)}
-.legend{display:flex; gap:18px; padding:6px 4px 0; font-size:12px; color:var(--ink-dim)}
-.legend span::before{content:""; display:inline-block; width:18px; height:3px; margin-right:6px; vertical-align:middle; border-radius:2px}
-.legend .l-path::before{background:var(--teal)}
-.legend .l-bad::before{background:var(--crimson)}
-.legend .l-ghost::before{background:var(--brass)}
+/* --- Left Pane: Sphere Viewer --- */
+.sphere-pane {
+  flex: 1;
+  height: 100vh;
+  position: relative;
+  background: radial-gradient(circle at 50% 50%, #101830 0%, #080c16 80%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
 
-.card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px}
-.card h2{font-family:var(--serif); font-weight:600; font-size:22px; margin-bottom:2px}
-.eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--brass); margin-bottom:6px}
+canvas#sky {
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+canvas#sky.dragging { cursor: grabbing; }
 
-.brief{color:var(--ink-dim); font-size:14.5px; margin-top:6px; line-height:1.5}
+/* Top HUD */
+.hud-top {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 10;
+}
+.hud-title-group h1 {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.hud-title-group h1 em {
+  color: var(--brass);
+  font-style: italic;
+}
+.hud-spec {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-dim);
+  margin-top: 4px;
+}
+.hud-spec .kw { color: var(--brass); font-weight: 500; }
 
-#speccard{border-color:var(--brass-dim)}
-.speclist{font-family:var(--mono); font-size:13px; line-height:1.8}
-.speclist .clause{border-bottom:1px dashed #232e4a; padding:2px 0}
-.speclist .clause:last-child{border-bottom:none}
-.speclist .kw{color:var(--brass)}
-.specfoot{margin-top:10px}
-.linklike{background:none; border:none; padding:0; color:var(--teal); font-size:inherit; font-weight:600; cursor:pointer; text-decoration:underline; text-underline-offset:3px}
-.bookbtn{border-color:var(--brass-dim); color:var(--brass)}
+.hud-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+}
+.waypoint-btn {
+  background: var(--night-2);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.waypoint-btn:hover { border-color: var(--brass); color: var(--ink); }
+.waypoint-btn.active { border-color: var(--teal); color: var(--teal); font-weight: 600; }
 
-.bookveil{position:fixed; inset:0; background:rgba(8,11,20,.78); display:flex; align-items:center; justify-content:center; padding:24px; z-index:50}
-.book{display:grid; grid-template-columns:200px 1fr; width:min(880px, 100%); max-height:min(640px, 92vh); background:linear-gradient(180deg,#1b2136,#151c30); border:1px solid var(--brass-dim); border-radius:12px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.6)}
-.bookspine{background:#121828; border-right:1px solid var(--line); padding:18px 14px; display:flex; flex-direction:column; gap:6px}
-.booktitle{font-family:var(--serif); font-size:20px; font-weight:600; color:var(--brass); margin-bottom:8px}
-.chapters{display:flex; flex-direction:column; gap:4px; flex:1}
-.chapters button{text-align:left; background:none; border:none; border-left:2px solid transparent; border-radius:0; color:var(--ink-dim); font-weight:400; padding:6px 10px; font-size:13.5px}
-.chapters button:hover{color:var(--ink)}
-.chapters button.now{color:var(--brass); border-left-color:var(--brass); font-weight:600}
-.bookpage{padding:24px 28px; overflow-y:auto; font-size:15px; line-height:1.65}
-.bookpage h3{font-family:var(--serif); font-size:24px; font-weight:600; color:var(--ink); margin-bottom:10px}
-.bookpage p{margin-bottom:12px; color:var(--ink)}
-.bookpage p.aside{color:var(--ink-dim); font-size:13.5px; border-left:2px solid var(--brass-dim); padding-left:12px}
-.bookpage code, .verifier code, .sug-card code, .brief code, .speclist code{font-family:var(--mono); font-size:.92em; background:#0e1526; border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:var(--teal)}
-.bookpage pre{font-family:var(--mono); font-size:13px; background:#0d1424; border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin:0 0 12px; overflow-x:auto; color:var(--ink)}
-@media (max-width:640px){ .book{grid-template-columns:1fr; max-height:92vh} .bookspine{flex-direction:row; flex-wrap:wrap; align-items:center} .chapters{flex-direction:row; flex-wrap:wrap} }
+/* Bottom HUD */
+.hud-bottom {
+  position: absolute;
+  bottom: 16px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  z-index: 10;
+}
+.hud-readout {
+  display: flex;
+  gap: 16px;
+  color: var(--ink-dim);
+  background: rgba(10, 15, 26, 0.75);
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(28, 39, 64, 0.6);
+  backdrop-filter: blur(8px);
+}
+.hud-readout b { color: var(--ink); font-weight: 500; }
+.hud-status {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+  background: rgba(10, 15, 26, 0.75);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+}
+.hud-status.pass {
+  border-color: var(--teal-dim);
+  color: var(--teal);
+  background: rgba(95, 212, 196, 0.1);
+}
+.hud-status.fail {
+  border-color: var(--crimson-dim);
+  color: var(--crimson);
+  background: rgba(226, 85, 106, 0.1);
+}
 
-button{font-family:var(--sans); font-weight:600; font-size:14px; border-radius:7px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink); padding:8px 16px; cursor:pointer; transition:background .15s, border-color .15s}
-button:hover{border-color:var(--brass-dim)}
-button:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
-button.primary{background:var(--brass); border-color:var(--brass); color:#181300}
-button.primary:hover{background:#d9b76a}
-button.run{background:var(--teal); border-color:var(--teal); color:#04211d; font-size:15px; padding:9px 22px}
-button.run:hover{background:#7ce2d4}
-button.ghostbtn{background:transparent; color:var(--ink-dim)}
-button:disabled{opacity:.4; cursor:default}
+/* --- Right Pane: Neovim Editor --- */
+.editor-pane {
+  flex: 1;
+  height: 100vh;
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  background: #0d1424;
+}
 
-.editorwrap{position:relative}
-textarea#code{width:100%; min-height:170px; resize:vertical; background:#0d1424; color:var(--ink); border:1px solid var(--line); border-radius:8px; font-family:var(--mono); font-size:14px; line-height:1.6; padding:12px 14px; caret-color:var(--teal)}
-textarea#code:focus{outline:none; border-color:var(--teal-dim)}
-.editorbar{display:flex; gap:10px; margin-top:10px; align-items:center; flex-wrap:wrap}
-.syntaxhint{font-family:var(--mono); font-size:11.5px; color:var(--ink-dim); margin-left:auto}
+/* CodeMirror Neovim Custom Theme */
+.CodeMirror {
+  flex: 1;
+  height: auto;
+  font-family: var(--mono);
+  font-size: 14.5px;
+  line-height: 1.65;
+  background: #0d1424 !important;
+  color: var(--ink) !important;
+}
+.CodeMirror-gutters {
+  background: #090e1b !important;
+  border-right: 1px solid #172238 !important;
+}
+.CodeMirror-linenumber {
+  color: #3b4b6d !important;
+  padding: 0 10px 0 6px !important;
+}
+.CodeMirror-cursor {
+  border-left: 2px solid var(--teal) !important;
+}
+.cm-fat-cursor .CodeMirror-cursor {
+  background: var(--brass) !important;
+  opacity: 0.75 !important;
+}
+.cm-animate-fat-cursor {
+  background-color: var(--brass) !important;
+  opacity: 0.75 !important;
+}
 
-.verifier{font-family:var(--mono); font-size:13px; line-height:1.7}
-.verifier .vline{padding:2px 0; border-bottom:1px dashed #232e4a}
-.verifier .vline:last-child{border-bottom:none}
-.verifier .ok::before{content:"✓ "; color:var(--teal)}
-.verifier .bad::before{content:"✗ "; color:var(--crimson)}
-.verifier .ok{color:var(--ink)}
-.verifier .bad{color:#f0a9b4}
-.verifier .idle{color:var(--ink-dim); font-style:italic; font-family:var(--sans)}
-.verdict{margin-top:10px; padding:10px 12px; border-radius:7px; font-family:var(--sans); font-size:14px; display:none}
-.verdict.pass{display:block; background:rgba(95,212,196,.09); border:1px solid var(--teal-dim); color:var(--teal)}
-.verdict.fail{display:block; background:rgba(226,85,106,.08); border:1px solid var(--crimson-dim); color:#f0a9b4}
-.verdict .continue{margin-top:10px}
+/* C++ Syntax Highlighting */
+.cm-s-default .cm-keyword { color: var(--brass); font-weight: 600; }
+.cm-s-default .cm-def { color: var(--teal); font-weight: 600; }
+.cm-s-default .cm-variable { color: var(--ink); }
+.cm-s-default .cm-variable-2 { color: #b8c7e0; }
+.cm-s-default .cm-number { color: #f1b37b; }
+.cm-s-default .cm-comment { color: #536488; font-style: italic; }
+.cm-s-default .cm-string { color: var(--violet); }
+.cm-s-default .cm-operator { color: var(--teal); }
+.cm-s-default .cm-meta { color: #9aa8c7; }
 
-.suggestions{display:grid; gap:12px}
-.sug-card{border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--panel-2)}
-.sug-card .who{font-family:var(--serif); font-size:18px; font-weight:600}
-.sug-card.rafiq .who{color:var(--teal)}
-.sug-card.waswas .who{color:var(--violet)}
-.sug-card .says{font-style:italic; color:var(--ink-dim); font-size:13.5px; margin:3px 0 8px}
-.sug-card pre{font-family:var(--mono); font-size:13px; background:#0d1424; border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin-bottom:8px; white-space:pre; overflow-x:auto; color:var(--ink)}
-.small{font-size:12px; color:var(--ink-dim)}
+/* Neovim Statusline */
+.nvim-statusline {
+  height: 28px;
+  background: #090e1b;
+  border-top: 1px solid #1a253d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 12px;
+  user-select: none;
+}
+.nvim-mode {
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  letter-spacing: .05em;
+  font-size: 11px;
+}
+.mode-normal { background: var(--brass); color: #0b0f1a; }
+.mode-insert { background: var(--teal); color: #041a17; }
+.mode-visual { background: var(--violet); color: #0e091d; }
 
-.finale{text-align:center; padding:34px 20px}
-.finale h2{font-family:var(--serif); font-size:30px; color:var(--brass); margin-bottom:10px}
-.finale p{color:var(--ink-dim); max-width:46ch; margin:0 auto 8px; line-height:1.6}
-.hidden{display:none !important}
-@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+.nvim-file {
+  color: var(--ink-dim);
+  padding: 0 12px;
+}
+.nvim-file b { color: var(--ink); font-weight: 500; }
+
+.nvim-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--ink-dim);
+  padding-right: 12px;
+}
+.nvim-run-btn {
+  background: #141f36;
+  border: 1px solid var(--line);
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.nvim-run-btn:hover { background: var(--teal); color: #041a17; }
+
+/* CodeMirror Dialog (Vim Ex Command Bar `:`) */
+.CodeMirror-dialog {
+  background: #090e1b !important;
+  color: var(--ink) !important;
+  border-top: 1px solid var(--line) !important;
+  font-family: var(--mono) !important;
+  font-size: 13px !important;
+  padding: 4px 10px !important;
+}
+.CodeMirror-dialog input {
+  background: transparent !important;
+  color: var(--teal) !important;
+  font-family: var(--mono) !important;
+  font-size: 13px !important;
+  outline: none !important;
+  border: none !important;
+}
 </style>
 </head>
 <body>
 
-<header class="top">
-  <h1><em>Rihla</em></h1>
-  <div class="sub">write a path in C++ · the sphere decides if it is admissible</div>
-  <button id="openbook" class="bookbtn">Reference book</button>
-  <div class="progress" id="progress" aria-label="level progress"></div>
-</header>
+<div class="split-container">
 
-<div class="layout">
-
-  <div class="spherewrap">
-    <canvas id="sky" width="900" height="900" aria-label="the sphere"></canvas>
-    <div class="legend">
-      <span class="l-path">admissible path</span>
-      <span class="l-bad">violation</span>
-      <span class="l-ghost">ghost compass</span>
+  <!-- LEFT PANE: SPHERE VISUALIZATION -->
+  <div class="sphere-pane" id="sphere-pane">
+    <div class="hud-top">
+      <div class="hud-title-group">
+        <h1><em>Rihla</em> · <span id="hud-level-title">First Steps</span></h1>
+        <div class="hud-spec" id="hud-spec">reach(60°N, 0°) within 3°</div>
+      </div>
+      <div class="hud-actions" id="hud-waypoints"></div>
     </div>
-    <div class="readout" id="readout"></div>
+
+    <canvas id="sky"></canvas>
+
+    <div class="hud-bottom">
+      <div class="hud-readout" id="hud-readout">
+        <span>pos <b>—</b></span>
+        <span>turn <b>0°</b></span>
+        <span>len <b>0°</b></span>
+        <span>holonomy <b>—</b></span>
+      </div>
+      <div class="hud-status" id="hud-status">Type :w to compile &amp; run</div>
+    </div>
   </div>
 
-  <div class="panels">
-
-    <div class="card" id="levelcard">
-      <div class="eyebrow" id="levelno">Waypoint 1 of 4</div>
-      <h2 id="leveltitle">First Steps</h2>
-      <p class="brief" id="levelbrief"></p>
-    </div>
-
-    <div class="card" id="speccard">
-      <div class="eyebrow">The spec</div>
-      <div class="speclist" id="speclist"></div>
-      <p class="small specfoot">A path satisfying every clause is <b>admissible</b>. Uncertain about a word? The <button class="linklike" id="openbook2">reference book</button> defines everything.</p>
-    </div>
-
-    <div class="card" id="suggestioncard">
-      <div class="eyebrow">Voices at the crossroads</div>
-      <div class="suggestions" id="suggestions"></div>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow">Your path</div>
-      <div class="editorwrap">
-        <textarea id="code" spellcheck="false" aria-label="path code editor" placeholder="// C++ path&#10;#include &lt;rihla.hpp&gt;&#10;&#10;void path() {&#10;    forward(60.0);&#10;}"></textarea>
-      </div>
-      <div class="editorbar">
-        <button class="run" id="runbtn">Run path</button>
-        <button id="clearbtn" class="ghostbtn">Clear</button>
-        <span class="syntaxhint">forward(deg); · turn(deg); · C++ functions &amp; control flow</span>
+  <!-- RIGHT PANE: NEOVIM TEXT ENTRY -->
+  <div class="editor-pane">
+    <textarea id="nvim-editor"></textarea>
+    <div class="nvim-statusline">
+      <div class="nvim-mode mode-normal" id="nvim-mode">NORMAL</div>
+      <div class="nvim-file"><b>path.cpp</b> [C++]</div>
+      <div class="nvim-info">
+        <span id="nvim-cursor">ln 1, col 1</span>
+        <button class="nvim-run-btn" id="run-trigger" title="Or type :w in Normal Mode">Run (:w)</button>
       </div>
     </div>
-
-    <div class="card">
-      <div class="eyebrow">The verifier speaks plainly</div>
-      <div class="verifier" id="verifier"><div class="idle">Run a path and every clause of the spec will be checked, honestly, whichever voice you listened to.</div></div>
-      <div class="verdict" id="verdict"></div>
-    </div>
-
   </div>
-</div>
 
-<div class="bookveil hidden" id="bookveil">
-  <div class="book" role="dialog" aria-modal="true" aria-label="Rihla reference book">
-    <div class="bookspine">
-      <div class="booktitle">Kitāb al-Rihla</div>
-      <nav class="chapters" id="chapters"></nav>
-      <button id="closebook" class="ghostbtn">Close</button>
-    </div>
-    <div class="bookpage" id="bookpage"></div>
-  </div>
 </div>
 
 <script>
 "use strict";
-/* ---------------- spherical math ---------------- */
-const D2R = Math.PI/180, R2D = 180/Math.PI;
-const V = {
-  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
-  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
-  scale:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
-  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
-  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
-  norm:(a)=>{const n=Math.hypot(a[0],a[1],a[2]); return [a[0]/n,a[1]/n,a[2]/n];}
-};
-function ll(lat,lon){ const la=lat*D2R, lo=lon*D2R;
-  return [Math.cos(la)*Math.cos(lo), Math.cos(la)*Math.sin(lo), Math.sin(la)]; }
-function toLatLon(p){ return [Math.asin(Math.max(-1,Math.min(1,p[2])))*R2D, Math.atan2(p[1],p[0])*R2D]; }
-function northAt(p){ const z=[0,0,1]; const t=V.sub(z, V.scale(p, V.dot(z,p)));
-  const n=Math.hypot(...t); return n<1e-9 ? [1,0,0] : V.scale(t,1/n); }
-function eastAt(p){ const c=V.cross([0,0,1],p); const n=Math.hypot(...c);
-  return n<1e-9 ? [0,1,0] : V.scale(c,1/n); }
-function stepForward(p,h,thDeg){ const th=thDeg*D2R;
-  const p2=V.add(V.scale(p,Math.cos(th)), V.scale(h,Math.sin(th)));
-  const h2=V.sub(V.scale(h,Math.cos(th)), V.scale(p,Math.sin(th)));
-  return [V.norm(p2), V.norm(h2)]; }
-function turnHeading(p,h,aDeg){ const a=aDeg*D2R;
-  return V.norm(V.add(V.scale(h,Math.cos(a)), V.scale(V.cross(p,h),Math.sin(a)))); }
-function rodrigues(v,axis,thDeg){ const th=thDeg*D2R, c=Math.cos(th), s=Math.sin(th);
-  return V.add(V.add(V.scale(v,c), V.scale(V.cross(axis,v),s)), V.scale(axis, V.dot(axis,v)*(1-c))); }
-function gdist(a,b){ return Math.acos(Math.max(-1,Math.min(1,V.dot(a,b))))*R2D; }
-function signedAngleAt(u,v,p){ return Math.atan2(V.dot(V.cross(u,v),p), V.dot(u,v))*R2D; }
 
-/* ---------------- C++ DSL runtime ---------------- */
-function parseProgram(src){
-  const cmds=[], errors=[];
+/* ========================================================================= */
+/* 1. SPHERICAL GEOMETRY ENGINE                                             */
+/* ========================================================================= */
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const V = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  scale: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ],
+  norm: (a) => {
+    const n = Math.hypot(a[0], a[1], a[2]);
+    return n < 1e-12 ? [0, 0, 1] : [a[0] / n, a[1] / n, a[2] / n];
+  }
+};
+
+function ll(lat, lon) {
+  const la = lat * D2R, lo = lon * D2R;
+  return [Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)];
+}
+function toLatLon(p) {
+  return [Math.asin(Math.max(-1, Math.min(1, p[2]))) * R2D, Math.atan2(p[1], p[0]) * R2D];
+}
+function northAt(p) {
+  const z = [0, 0, 1];
+  const t = V.sub(z, V.scale(p, V.dot(z, p)));
+  const n = Math.hypot(...t);
+  return n < 1e-9 ? [1, 0, 0] : V.scale(t, 1 / n);
+}
+function eastAt(p) {
+  const c = V.cross([0, 0, 1], p);
+  const n = Math.hypot(...c);
+  return n < 1e-9 ? [0, 1, 0] : V.scale(c, 1 / n);
+}
+function stepForward(p, h, thDeg) {
+  const th = thDeg * D2R;
+  const p2 = V.add(V.scale(p, Math.cos(th)), V.scale(h, Math.sin(th)));
+  const h2 = V.sub(V.scale(h, Math.cos(th)), V.scale(p, Math.sin(th)));
+  return [V.norm(p2), V.norm(h2)];
+}
+function turnHeading(p, h, aDeg) {
+  const a = aDeg * D2R;
+  return V.norm(V.add(V.scale(h, Math.cos(a)), V.scale(V.cross(p, h), Math.sin(a))));
+}
+function rodrigues(v, axis, thDeg) {
+  const th = thDeg * D2R, c = Math.cos(th), s = Math.sin(th);
+  return V.add(V.add(V.scale(v, c), V.scale(V.cross(axis, v), s)), V.scale(axis, V.dot(axis, v) * (1 - c)));
+}
+function gdist(a, b) {
+  return Math.acos(Math.max(-1, Math.min(1, V.dot(a, b)))) * R2D;
+}
+function signedAngleAt(u, v, p) {
+  return Math.atan2(V.dot(V.cross(u, v), p), V.dot(u, v)) * R2D;
+}
+
+/* ========================================================================= */
+/* 2. C++ DSL COMPILER & SIMULATOR                                          */
+/* ========================================================================= */
+function parseCppProgram(src) {
+  const cmds = [], errors = [];
   let steps = 0;
   const MAX_STEPS = 25000;
 
-  function forward(deg){
-    if(++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
+  function forward(deg) {
+    if (++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
     const val = Number(deg);
-    if(isNaN(val) || val <= 0 || val > 360){
+    if (isNaN(val) || val <= 0 || val > 360) {
       errors.push(`forward(${deg}): length must be between 0 and 360 degrees`);
     } else {
-      cmds.push({op:"forward", val, line:0});
+      cmds.push({ op: "forward", val });
     }
   }
 
-  function turn(deg){
-    if(++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
+  function turn(deg) {
+    if (++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
     const val = Number(deg);
-    if(isNaN(val)){
-      errors.push(`turn(${deg}): invalid turn angle`);
+    if (isNaN(val)) {
+      errors.push(`turn(${deg}): invalid angle argument`);
     } else {
-      cmds.push({op:"turn", val, line:0});
+      cmds.push({ op: "turn", val });
     }
   }
   const fd = forward, t = turn;
 
   let js = src;
-  // Handle bare commands like forward 60; or turn 90;
+  // Handle bare commands: forward 60; -> forward(60);
   js = js.replace(/^\s*(forward|fd|turn|t)\s+([-\d.]+)\s*;?\s*$/gmi, "$1($2);");
-  // Strip preprocessor directives (#include <...>, #define, etc.)
+  // Strip preprocessor headers
   js = js.replace(/^\s*#.*$/gm, "");
   // Strip using namespace ...;
   js = js.replace(/^\s*using\s+namespace\s+[^;]+;/gm, "");
-  // Replace C++ type signatures in function headers: void path() -> function path()
+  // Replace C++ function declarations: void path() -> function path()
   js = js.replace(/\b(void|int|double|float|auto)\s+([a-zA-Z_]\w*)\s*\(/g, "function $2(");
-  // Replace variable type declarations: int i = 0, double angle = 90
+  // Replace C++ type declarations with let / const
   js = js.replace(/\b(int|double|float|auto|size_t)\s+/g, "let ");
   js = js.replace(/\bconst\s+(int|double|float|auto|size_t)\s+/g, "const ");
 
   try {
     const fn = new Function("forward", "turn", "fd", "t", `
       ${js}
-      if(typeof path === "function") path();
-      else if(typeof run === "function") run();
-      else if(typeof main === "function") main();
+      if (typeof path === "function") path();
+      else if (typeof run === "function") run();
+      else if (typeof main === "function") main();
     `);
     fn(forward, turn, fd, t);
-  } catch(err){
-    errors.push(`C++ syntax / execution error: ${err.message}`);
+  } catch (err) {
+    errors.push(`C++ Compile Error: ${err.message}`);
   }
-  return {cmds, errors};
+  return { cmds, errors };
 }
 
-function simulate(level, cmds){
+function simulate(level, cmds) {
   let p = ll(level.start.lat, level.start.lon);
-  let h = level.start.heading==="east" ? eastAt(p) : northAt(p);
-  let r = h.slice();                       // ghost compass: parallel-transported only
-  const p0=p.slice(), h0=h.slice();
-  const samples=[{p:p.slice(), t:0}];
-  let totalTurn=0, pathLen=0;
-  for(const c of cmds){
-    if(c.op==="turn"){ h = turnHeading(p,h,c.val); totalTurn += Math.abs(c.val); }
-    else{
-      const n = Math.max(2, Math.ceil(Math.abs(c.val)*2));
-      const step = c.val/n;
-      for(let i=0;i<n;i++){
-        const axis = V.norm(V.cross(p,h));
+  let h = level.start.heading === "east" ? eastAt(p) : northAt(p);
+  let r = h.slice(); // Ghost compass (parallel transport only)
+  const p0 = p.slice(), h0 = h.slice();
+  const samples = [{ p: p.slice(), t: 0 }];
+  let totalTurn = 0, pathLen = 0;
+
+  for (const c of cmds) {
+    if (c.op === "turn") {
+      h = turnHeading(p, h, c.val);
+      totalTurn += Math.abs(c.val);
+    } else {
+      const n = Math.max(2, Math.ceil(Math.abs(c.val) * 2));
+      const step = c.val / n;
+      for (let i = 0; i < n; i++) {
+        const axis = V.norm(V.cross(p, h));
         r = rodrigues(r, axis, step);
-        [p,h] = stepForward(p,h,step);
-        samples.push({p:p.slice()});
+        [p, h] = stepForward(p, h, step);
+        samples.push({ p: p.slice() });
       }
       pathLen += Math.abs(c.val);
     }
   }
-  // holonomy: compare transported r against the initial heading, in the tangent plane at p0
-  const rTan = V.norm(V.sub(r, V.scale(p0, V.dot(r,p0))));
-  const rEnd = V.norm(V.sub(r, V.scale(p, V.dot(r,p))));
+
+  const rTan = V.norm(V.sub(r, V.scale(p0, V.dot(r, p0))));
+  const rEnd = V.norm(V.sub(r, V.scale(p, V.dot(r, p))));
   const holonomy = signedAngleAt(h0, rTan, p0);
   const closureErr = gdist(p, p0);
-  return { samples, end:p, endHeading:h, ghost:rTan, ghostEnd:rEnd, start:p0, startHeading:h0,
-           totalTurn, pathLen, holonomy, closureErr };
+
+  return {
+    samples,
+    end: p,
+    endHeading: h,
+    ghost: rTan,
+    ghostEnd: rEnd,
+    start: p0,
+    startHeading: h0,
+    totalTurn,
+    pathLen,
+    holonomy,
+    closureErr
+  };
 }
 
-/* ---------------- levels ---------------- */
-/* Positive turn = left (counterclockwise seen from outside the sphere). */
+/* ========================================================================= */
+/* 3. WAYPOINTS & SPECIFICATIONS                                            */
+/* ========================================================================= */
 const LEVELS = [
-{
-  title:"First Steps",
-  start:{lat:0, lon:0, heading:"north"},
-  view:{yaw:0, pitch:26},
-  target:{lat:60, lon:0, tol:3},
-  brief:`You stand on the equator, facing north — the brass dot. Reach the teal ring on the same meridian.`,
-  clauses:[`<span class="kw">start:</span> point(lat: 0°, lon: 0°), heading: north`,
-           `<span class="kw">goal:</span>  reach(point(lat: 60°, lon: 0°)) within(tol: 3°)`],
-  spec(res){
-    const err = gdist(res.end, ll(60,0));
-    return [
-      {ok: err<=3, label:"goal: reach(60°N, 0°) within 3°",
-       detail: err<=3 ? `arrived ${err.toFixed(1)}° from the mark` : `ended ${err.toFixed(1)}° away — walk the meridian`},
-    ];
-  }
-},
-{
-  title:"The Turn",
-  start:{lat:0, lon:0, heading:"north"},
-  view:{yaw:-24, pitch:22},
-  target:{lat:30.0, lon:54.74, tol:3},
-  brief:`The ring sits off your meridian. You will need <code>turn</code> — and the spec meters how much of it you may spend.`,
-  clauses:[`<span class="kw">start:</span> point(lat: 0°, lon: 0°), heading: north`,
-           `<span class="kw">goal:</span>  reach(point(lat: 30°, lon: 54.7°)) within(tol: 3°)`,
-           `<span class="kw">invariant:</span> turning_total() ≤ 120°`],
-  spec(res){
-    const err = gdist(res.end, ll(30.0,54.74));
-    return [
-      {ok: err<=3, label:"goal: reach the ring within 3°",
-       detail: err<=3 ? `arrived ${err.toFixed(1)}° from the mark` : `ended ${err.toFixed(1)}° away`},
-      {ok: res.totalTurn<=120, label:"invariant: turning_total() ≤ 120°",
-       detail:`used ${res.totalTurn.toFixed(0)}° of 120°`}
-    ];
-  }
-},
-{
-  title:"The Storm",
-  start:{lat:-50, lon:0, heading:"north"},
-  view:{yaw:0, pitch:4},
-  target:{lat:50, lon:0, tol:4},
-  storm:{lat:0, lon:0, radius:20},
-  brief:`A storm sits between you and the ring, and two voices offer you code. The verifier below the editor is the only referee — it reports the road, not the voice.`,
-  clauses:[`<span class="kw">start:</span> point(lat: −50°, lon: 0°), heading: north`,
-           `<span class="kw">goal:</span>  reach(point(lat: 50°, lon: 0°)) within(tol: 4°)`,
-           `<span class="kw">invariant:</span> dist(storm_center) ≥ 20°  <span class="kw">// checked at every point</span>`],
-  suggestions:[
-    {who:"Waswās", cls:"waswas", says:"The straight road is the short road. One line, traveler. Why write four?",
-     code:"forward(100.0);"},
-    {who:"Rafiq", cls:"rafiq", says:"The storm does not negotiate. Bend east, pass its shoulder, bend back.",
-     code:"turn(-35.0);\nforward(55.0);\nturn(43.0);\nforward(55.0);"}
-  ],
-  spec(res){
-    const c = ll(0,0);
-    let minD=1e9, breach=null;
-    for(const s of res.samples){
-      const d = gdist(s.p, c);
-      if(d<minD) minD=d;
-      if(d<20 && !breach) breach = toLatLon(s.p);
-    }
-    const err = gdist(res.end, ll(50,0));
-    return [
-      {ok: !breach, label:"invariant: dist(storm_center) ≥ 20°",
-       detail: breach ? `first breached at (${breach[0].toFixed(0)}°, ${breach[1].toFixed(0)}°) — closest pass ${minD.toFixed(1)}°`
-                      : `closest pass ${minD.toFixed(1)}° — clear of the storm`},
-      {ok: err<=4, label:"goal: reach(50°N, 0°) within 4°",
-       detail: err<=4 ? `arrived ${err.toFixed(1)}° from the mark` : `ended ${err.toFixed(1)}° away`}
-    ];
-  }
-},
-{
-  title:"The Turning Home",
-  start:{lat:0, lon:0, heading:"east"},
-  view:{yaw:-38, pitch:30},
-  target:{lat:0, lon:0, tol:3},
-  brief:`This spec asks nothing about where you end — only that you come home, and that the ground itself has rotated your ghost compass. See the reference book's chapter on holonomy.`,
-  clauses:[`<span class="kw">start:</span> point(lat: 0°, lon: 0°), heading: east`,
-           `<span class="kw">goal:</span>  closed() within(tol: 3°)`,
-           `<span class="kw">goal:</span>  |holonomy()| = 90° within(tol: 8°)`,
-           `<span class="kw">invariant:</span> turning_total() ≤ 280°`],
-  spec(res){
-    const closed = res.closureErr<=3;
-    const holoOK = closed && Math.abs(Math.abs(res.holonomy)-90)<=8;
-    return [
-      {ok: closed, label:"goal: closed() within 3°",
-       detail: closed ? `loop closes, ${res.closureErr.toFixed(1)}° gap` : `loop gapes ${res.closureErr.toFixed(1)}° — come home first`},
-      {ok: holoOK, label:"goal: |holonomy()| = 90° within 8°",
-       detail: closed ? `ghost compass rotated ${res.holonomy.toFixed(1)}°` : `holonomy is only defined once the loop closes`},
-      {ok: res.totalTurn<=280, label:"invariant: turning_total() ≤ 280°",
-       detail:`used ${res.totalTurn.toFixed(0)}° of 280°`}
-    ];
-  }
-}
-];
-
-/* ---------------- renderer ---------------- */
-const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
-let view = {yaw:0, pitch:20};
-let lastResult = null, drawProgress = 1, violSet = null, animId = null;
-let levelIdx = 0;
-const done = LEVELS.map(()=>false);
-
-function project(p){
-  const cy=Math.cos(view.yaw*D2R), sy=Math.sin(view.yaw*D2R);
-  const cp=Math.cos(view.pitch*D2R), sp=Math.sin(view.pitch*D2R);
-  const x1=p[0]*cy - p[1]*sy, y1=p[0]*sy + p[1]*cy, z1=p[2];
-  const x2=x1*cp + z1*sp, z2=-x1*sp + z1*cp;
-  return {sx:y1, sy:-z2, depth:x2};
-}
-function screen(pr, W, Rpx){ return [W/2 + pr.sx*Rpx, W/2 + pr.sy*Rpx]; }
-
-function drawArcSampled(points, W, Rpx, colorFront, colorBack, width, flags){
-  ctx.lineWidth = width; ctx.lineCap="round"; ctx.lineJoin="round";
-  let prev=null;
-  for(let i=0;i<points.length;i++){
-    const pr = project(points[i]);
-    const [x,y] = screen(pr,W,Rpx);
-    if(prev){
-      const front = (pr.depth>=0 && prev.depth>=0);
-      const bad = flags && (flags[i]||flags[i-1]);
-      ctx.strokeStyle = bad ? (front? "rgba(226,85,106,.95)":"rgba(226,85,106,.28)")
-                            : (front? colorFront : colorBack);
-      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(x,y); ctx.stroke();
-    }
-    prev={x,y,depth:pr.depth};
-  }
-}
-function circlePoints(center, radiusDeg, n=96){
-  const u = Math.abs(center[2])<.9 ? V.norm(V.cross(center,[0,0,1])) : V.norm(V.cross(center,[1,0,0]));
-  const w = V.norm(V.cross(center,u));
-  const cr=Math.cos(radiusDeg*D2R), sr=Math.sin(radiusDeg*D2R);
-  const pts=[];
-  for(let i=0;i<=n;i++){ const a=i/n*2*Math.PI;
-    pts.push(V.add(V.scale(center,cr), V.add(V.scale(u,sr*Math.cos(a)), V.scale(w,sr*Math.sin(a))))); }
-  return pts;
-}
-function drawMarker(p, W, Rpx, color, r, fill=true, glow=false){
-  const pr=project(p); if(pr.depth<-0.02) return;
-  const [x,y]=screen(pr,W,Rpx);
-  if(glow){ ctx.shadowColor=color; ctx.shadowBlur=14; }
-  ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI);
-  if(fill){ ctx.fillStyle=color; ctx.fill(); } else { ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke(); }
-  ctx.shadowBlur=0;
-}
-function drawNeedle(p, dir, W, Rpx, color, lenDeg){
-  const pr=project(p); if(pr.depth<0) return;
-  const tip = V.norm(V.add(V.scale(p,Math.cos(lenDeg*D2R)), V.scale(dir,Math.sin(lenDeg*D2R))));
-  const pt=project(tip);
-  const [x0,y0]=screen(pr,W,Rpx), [x1,y1]=screen(pt,W,Rpx);
-  ctx.strokeStyle=color; ctx.lineWidth=3; ctx.lineCap="round";
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
-  const ang=Math.atan2(y1-y0,x1-x0);
-  ctx.beginPath();
-  ctx.moveTo(x1,y1);
-  ctx.lineTo(x1-9*Math.cos(ang-0.42), y1-9*Math.sin(ang-0.42));
-  ctx.lineTo(x1-9*Math.cos(ang+0.42), y1-9*Math.sin(ang+0.42));
-  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
-}
-
-function render(){
-  const W = cv.width;
-  const Rpx = W*0.42;
-  ctx.clearRect(0,0,W,W);
-  const lvl = LEVELS[levelIdx];
-
-  // sphere disk
-  const g = ctx.createRadialGradient(W/2 - Rpx*0.3, W/2 - Rpx*0.35, Rpx*0.1, W/2, W/2, Rpx*1.05);
-  g.addColorStop(0,"#1c2742"); g.addColorStop(0.7,"#141d33"); g.addColorStop(1,"#0f1526");
-  ctx.beginPath(); ctx.arc(W/2,W/2,Rpx,0,2*Math.PI); ctx.fillStyle=g; ctx.fill();
-  ctx.strokeStyle="rgba(201,165,87,.5)"; ctx.lineWidth=1.5; ctx.stroke();
-
-  // graticule
-  for(let lat=-60; lat<=60; lat+=30){
-    const pts=[]; for(let lon=0;lon<=360;lon+=4) pts.push(ll(lat,lon));
-    drawArcSampled(pts,W,Rpx, lat===0?"rgba(201,165,87,.4)":"rgba(201,165,87,.16)","rgba(201,165,87,.05)", lat===0?1.4:1);
-  }
-  for(let lon=0; lon<180; lon+=30){
-    const pts=[]; for(let lat=-90;lat<=90;lat+=4){ pts.push(ll(lat,lon)); }
-    for(let lat=90;lat>=-90;lat-=4){ pts.push(ll(lat,lon+180)); }
-    drawArcSampled(pts,W,Rpx,"rgba(201,165,87,.16)","rgba(201,165,87,.05)",1);
-  }
-
-  // storm cap
-  if(lvl.storm){
-    const c = ll(lvl.storm.lat,lvl.storm.lon);
-    for(let r=lvl.storm.radius; r>2; r-=4){
-      drawArcSampled(circlePoints(c,r),W,Rpx,"rgba(226,85,106,.34)","rgba(226,85,106,.08)", r===lvl.storm.radius?2:1);
-    }
-    drawMarker(c,W,Rpx,"rgba(226,85,106,.9)",3);
-  }
-
-  // target ring
-  if(lvl.target){
-    const t = ll(lvl.target.lat,lvl.target.lon);
-    drawArcSampled(circlePoints(t,lvl.target.tol),W,Rpx,"rgba(95,212,196,.9)","rgba(95,212,196,.2)",2);
-    drawMarker(t,W,Rpx,"#5fd4c4",3,true,true);
-  }
-
-  // start
-  const s = ll(lvl.start.lat,lvl.start.lon);
-  drawMarker(s,W,Rpx,"#c9a557",5,true,true);
-
-  // path
-  if(lastResult){
-    const n = Math.max(2, Math.floor(lastResult.samples.length*drawProgress));
-    const pts = lastResult.samples.slice(0,n).map(o=>o.p);
-    const flags = violSet ? violSet.slice(0,n) : null;
-    drawArcSampled(pts,W,Rpx,"rgba(95,212,196,.95)","rgba(95,212,196,.22)",2.6,flags);
-    const endP = pts[pts.length-1];
-    drawMarker(endP,W,Rpx,"#e9e3d3",4);
-    if(drawProgress>=1){
-      drawNeedle(lastResult.end, lastResult.endHeading, W,Rpx,"#5fd4c4",10);
-      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W,Rpx,"#c9a557",10);
-    }
-  } else {
-    const h0 = lvl.start.heading==="east" ? eastAt(s) : northAt(s);
-    drawNeedle(s,h0,W,Rpx,"#5fd4c4",10);
-    drawNeedle(s,h0,W,Rpx,"rgba(201,165,87,.0)",0);
-  }
-}
-
-/* drag to rotate */
-let dragging=false, lastX=0, lastY=0;
-cv.addEventListener("pointerdown",e=>{dragging=true; lastX=e.clientX; lastY=e.clientY; cv.classList.add("dragging"); cv.setPointerCapture(e.pointerId);});
-cv.addEventListener("pointermove",e=>{ if(!dragging) return;
-  view.yaw += (e.clientX-lastX)*0.4;
-  view.pitch = Math.max(-85, Math.min(85, view.pitch + (e.clientY-lastY)*0.4));
-  lastX=e.clientX; lastY=e.clientY; render(); });
-cv.addEventListener("pointerup",()=>{dragging=false; cv.classList.remove("dragging");});
-
-/* ---------------- game flow ---------------- */
-const $ = id=>document.getElementById(id);
-function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
-
-function setReadout(res){
-  const el = $("readout");
-  if(!res){ el.innerHTML = `<span>position <b>—</b></span><span>turning <b>0°</b></span><span>length <b>0°</b></span>`; return; }
-  const [la,lo]=toLatLon(res.end);
-  const holo = res.closureErr<=3 ? `${res.holonomy.toFixed(1)}°` : "open loop";
-  el.innerHTML =
-    `<span>position <b>(${la.toFixed(1)}°, ${lo.toFixed(1)}°)</b></span>`+
-    `<span>turning <b>${res.totalTurn.toFixed(0)}°</b></span>`+
-    `<span>length <b>${res.pathLen.toFixed(0)}°</b></span>`+
-    `<span class="holo">ghost compass <b>${holo}</b></span>`;
-}
-
-function loadLevel(i){
-  levelIdx=i; lastResult=null; violSet=null; drawProgress=1;
-  const lvl=LEVELS[i];
-  view = {...lvl.view};
-  $("levelno").textContent = `Waypoint ${i+1} of ${LEVELS.length}`;
-  $("leveltitle").textContent = lvl.title;
-  $("levelbrief").innerHTML = lvl.brief;
-  $("speclist").innerHTML = lvl.clauses.map(c=>`<div class="clause">${c}</div>`).join("");
-  $("code").value = "";
-  $("verifier").innerHTML = `<div class="idle">Run a path and every clause of the spec will be checked.</div>`;
-  const vd=$("verdict"); vd.className="verdict"; vd.innerHTML="";
-  const sc=$("suggestioncard");
-  if(lvl.suggestions){
-    sc.classList.remove("hidden");
-    $("suggestions").innerHTML = lvl.suggestions.map((s,k)=>
-      `<div class="sug-card ${s.cls}">
-        <div class="who">${s.who}</div>
-        <div class="says">“${s.says}”</div>
-        <pre>${esc(s.code)}</pre>
-        <button data-ins="${k}">Insert</button>
-      </div>`).join("");
-    document.querySelectorAll("[data-ins]").forEach(b=>b.addEventListener("click",()=>{
-      const t=$("code");
-      t.value = (t.value.trim() ? t.value.replace(/\s*$/,"\n") : "") + lvl.suggestions[+b.dataset.ins].code + "\n";
-      t.focus();
-    }));
-  } else sc.classList.add("hidden");
-  renderProgress(); setReadout(null); render();
-}
-
-/* ---------------- reference book ---------------- */
-const BOOK = [
-{t:"The World & Its State", body:`
-<h3>The World &amp; Its State</h3>
-<p>Everything in Rihla is one small piece of state: a <b>position</b> (p), a point on the sphere, and a <b>heading</b> (h), a unit direction lying flat against the sphere at that point — a vector in the tangent plane. The brass dot on the globe is your position; the teal needle is your heading.</p>
-<p>Your program is a list of instructions. Each instruction is a <b>state transition</b>: it takes the pair of the position (p) and the heading (h) to a new pair. Nothing else exists — no hidden velocity, no memory. What the state is after a program is exactly the composition of its transitions.</p>
-<p class="aside">Coordinates on the readout are latitude and longitude in degrees. Latitude runs from −90° at the south pole to 90° at the north pole; longitude runs eastward.</p>`},
-{t:"Moving: forward", body:`
-<h3>Moving: <code>forward(deg)</code></h3>
-<p><code>forward(60.0);</code> walks you sixty degrees along the <b>great circle</b> your heading points down — the straightest possible line on a sphere, called a geodesic. Your heading is carried along with you, staying straight the whole way.</p>
-<p>Distance here <i>is</i> an angle. On a sphere of radius (R), the arc length (s) of a walk equals the radius (R) multiplied by the central angle (θ) that the arc subtends at the sphere's center, that is s = Rθ. On our unit sphere the radius (R) is one, so the arc length (s) and the angle (θ) are the same number. Walking <code>forward(90.0);</code> covers a quarter of the way around the world; <code>forward(360.0);</code> brings you home along a full great circle.</p>
-<pre>void forward(double deg); // walk deg° of great circle
-void fd(double deg);      // shorthand
-
-// Usage:
-forward(60.0);
-fd(25.0);</pre>`},
-{t:"Turning: turn", body:`
-<h3>Turning: <code>turn(deg)</code></h3>
-<p><code>turn(90.0);</code> rotates your heading inside the tangent plane where you stand. Positive angles turn <b>left</b> (counterclockwise, seen from outside the sphere); negative angles turn <b>right</b>. Turning moves nothing — it only chooses which great circle the next <code>forward</code> follows.</p>
-<pre>void turn(double deg); // rotate heading in tangent plane
-void t(double deg);    // shorthand
-
-// Usage:
-turn(90.0);   // face left
-turn(-35.0);  // face 35° to the right
-t(45.0);      // shorthand</pre>
-<p>Many specs meter your turning. The quantity turning_total() is the sum of the absolute values of every turn you commanded, so a left turn and a right turn both spend from the same budget.</p>
-<p class="aside">A warning from flat paper: on the sphere, a right-angle turn does not compose the way Euclid promises. Walk two equal legs joined by a 90° turn and measure where you land — the sphere is already whispering.</p>`},
-{t:"Specs & Admissibility", body:`
-<h3>Specs &amp; Admissibility</h3>
-<p>Every waypoint carries a <b>spec</b>: a set of clauses your path must respect. A path satisfying every clause is <b>admissible</b>. There are three kinds of clause.</p>
-<p>A <b>goal</b> clause is checked once, at the end of your path — for example reach(point) within a tolerance, or closed(), which demands you end where you began.</p>
-<p>An <b>invariant</b> clause is checked at <i>every point</i> along the path, not just the end. A path that dips inside a storm for a single degree of arc is inadmissible, however cleanly it arrives.</p>
-<p>A <b>step</b> clause constrains each individual transition, comparing the state before (s) with the state after (s′) — for example a bound on any single leg's length. The waypoints in this prototype use goals and invariants.</p>
-<p>At some crossroads, voices offer you code. Their fragments are ordinary C++ code — insert them, edit them, ignore them. The <b>verifier</b> beneath the editor is the only referee: it checks every clause honestly and, when one breaks, names the first point of breach. It reports the road, not the voice.</p>`},
-{t:"The Ghost Compass", body:`
-<h3>The Ghost Compass &amp; Holonomy</h3>
-<p>Beside you rides a brass needle: the <b>ghost compass</b>. It never feels your <code>turn</code> commands. It is carried by <b>parallel transport</b> — moved along each geodesic leg as straight as the ground allows, rotated only by the shape of the sphere itself.</p>
-<p>Walk any closed loop and the needle comes home rotated. That rotation is the <b>holonomy</b> of the loop, and it equals the enclosed area divided by the square of the radius: the holonomy angle (φ) satisfies φ = A / R², where the area (A) is what your loop encloses and the radius (R) is the sphere's. On our unit sphere the radius (R) is one, so the holonomy angle (φ) simply equals the enclosed area (A), measured in the same degrees.</p>
-<p>This is Gauss–Bonnet wearing walking boots. For a geodesic triangle, the angular excess (E) — the sum of the three interior angles minus 180° — equals the enclosed area (A). The triangle with one corner at your feet on the equator, one at the north pole, and one a quarter-world east has three right angles: its excess (E) is 3 × 90° − 180° = 90°, so its area (A) is 90°, so a walk around it rotates the ghost compass by 90°.</p>
-<pre>// Closed 90°-90°-90° spherical triangle:
-for (int i = 0; i < 3; ++i) {
-    forward(90.0);
-    turn(90.0);
-}
-// Home! Ghost compass rotated 90°</pre>
-<p class="aside">Curvature is a currency and loops are how you spend it: rotation of the transported frame costs enclosed area, and enclosing area costs perimeter walked.</p>`},
-{t:"C++ DSL & Syntax", body:`
-<h3>C++ DSL &amp; Syntax</h3>
-<p>Programs are written in <b>standard C++</b>. You can write top-level function calls, or wrap your logic in a function like <code>void path()</code> or <code>int main()</code>.</p>
-<pre>#include &lt;rihla.hpp&gt;
+  {
+    title: "First Steps",
+    specText: "reach(60°N, 0°) within 3°",
+    start: { lat: 0, lon: 0, heading: "north" },
+    view: { yaw: 0, pitch: 26 },
+    target: { lat: 60, lon: 0, tol: 3 },
+    code: `#include <rihla.hpp>
 
 void path() {
-    double leg = 45.0;
-    forward(leg);
-    turn(-30.0);
-    
-    // Loops and standard C++ control flow are fully supported:
-    for (int i = 0; i &lt; 2; ++i) {
-        forward(30.0);
-        turn(45.0);
+    // Reach the teal target along the meridian
+    forward(60.0);
+}
+`,
+    spec(res) {
+      const err = gdist(res.end, ll(60, 0));
+      return [{ ok: err <= 3, label: `goal: reach(60°N, 0°) — ${err.toFixed(1)}° away` }];
     }
-}</pre>
-<p>Forward lengths must lie between 0 and 360 degrees. Turn angles may be any signed number. All calculations and graphics run 100% client-side in your browser.</p>
-<p class="aside">The readout beneath the globe reports your end position, total turning spent, total path length, and — once a loop closes — the ghost compass rotation.</p>`}
+  },
+  {
+    title: "The Turn",
+    specText: "reach(30°N, 54.7°E) | turning_total() <= 120°",
+    start: { lat: 0, lon: 0, heading: "north" },
+    view: { yaw: -24, pitch: 22 },
+    target: { lat: 30.0, lon: 54.74, tol: 3 },
+    code: `#include <rihla.hpp>
+
+void path() {
+    // Turn and reach the off-meridian target
+    turn(-35.0);
+    forward(65.0);
+}
+`,
+    spec(res) {
+      const err = gdist(res.end, ll(30.0, 54.74));
+      return [
+        { ok: err <= 3, label: `goal: reach ring — ${err.toFixed(1)}° away` },
+        { ok: res.totalTurn <= 120, label: `invariant: turn ${res.totalTurn.toFixed(0)}° <= 120°` }
+      ];
+    }
+  },
+  {
+    title: "The Storm",
+    specText: "reach(50°N, 0°) | dist(storm_center) >= 20°",
+    start: { lat: -50, lon: 0, heading: "north" },
+    view: { yaw: 0, pitch: 4 },
+    target: { lat: 50, lon: 0, tol: 4 },
+    storm: { lat: 0, lon: 0, radius: 20 },
+    code: `#include <rihla.hpp>
+
+void path() {
+    // Maneuver around the storm at (0, 0)
+    turn(-35.0);
+    forward(55.0);
+    turn(43.0);
+    forward(55.0);
+}
+`,
+    spec(res) {
+      const c = ll(0, 0);
+      let minD = 1e9, breach = null;
+      for (const s of res.samples) {
+        const d = gdist(s.p, c);
+        if (d < minD) minD = d;
+        if (d < 20 && !breach) breach = toLatLon(s.p);
+      }
+      const err = gdist(res.end, ll(50, 0));
+      return [
+        { ok: !breach, label: breach ? `storm breached (closest pass ${minD.toFixed(1)}°)` : `storm avoided (pass ${minD.toFixed(1)}°)` },
+        { ok: err <= 4, label: `goal: reach target — ${err.toFixed(1)}° away` }
+      ];
+    }
+  },
+  {
+    title: "The Turning Home",
+    specText: "closed() within 3° | |holonomy()| = 90° within 8°",
+    start: { lat: 0, lon: 0, heading: "east" },
+    view: { yaw: -38, pitch: 30 },
+    target: { lat: 0, lon: 0, tol: 3 },
+    code: `#include <rihla.hpp>
+
+void path() {
+    // 90-90-90 spherical triangle: Gauss-Bonnet holonomy
+    for (int i = 0; i < 3; ++i) {
+        forward(90.0);
+        turn(90.0);
+    }
+}
+`,
+    spec(res) {
+      const closed = res.closureErr <= 3;
+      const holoOK = closed && Math.abs(Math.abs(res.holonomy) - 90) <= 8;
+      return [
+        { ok: closed, label: `goal: closed loop (${res.closureErr.toFixed(1)}° gap)` },
+        { ok: holoOK, label: closed ? `holonomy rotation: ${res.holonomy.toFixed(1)}° (target 90°)` : `open loop: holonomy undefined` }
+      ];
+    }
+  }
 ];
-let bookCh = 0;
-function renderBook(){
-  $("chapters").innerHTML = BOOK.map((c,i)=>
-    `<button class="${i===bookCh?"now":""}" data-ch="${i}">${c.t}</button>`).join("");
-  $("bookpage").innerHTML = BOOK[bookCh].body;
-  document.querySelectorAll("[data-ch]").forEach(b=>b.addEventListener("click",()=>{
-    bookCh=+b.dataset.ch; renderBook();
-  }));
-}
-function openBook(ch){ if(typeof ch==="number") bookCh=ch; renderBook();
-  $("bookveil").classList.remove("hidden"); $("closebook").focus(); }
-function closeBook(){ $("bookveil").classList.add("hidden"); }
-$("openbook").addEventListener("click",()=>openBook());
-$("openbook2").addEventListener("click",()=>openBook());
-$("closebook").addEventListener("click",closeBook);
-$("bookveil").addEventListener("click",e=>{ if(e.target.id==="bookveil") closeBook(); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeBook(); });
 
-function renderProgress(){
-  $("progress").innerHTML = LEVELS.map((_,i)=>
-    `<span class="dot ${done[i]?"done":""} ${i===levelIdx?"now":""}" title="${LEVELS[i].title}"></span>`).join("");
-}
+let levelIdx = 0;
+const completed = LEVELS.map(() => false);
 
-function computeViolFlags(lvl,res){
-  if(!lvl.storm) return null;
-  const c = ll(lvl.storm.lat,lvl.storm.lon);
-  return res.samples.map(s=> gdist(s.p,c) < lvl.storm.radius);
-}
+/* ========================================================================= */
+/* 4. CANVAS RENDERER                                                       */
+/* ========================================================================= */
+const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
+let view = { yaw: 0, pitch: 20 };
+let lastResult = null, drawProgress = 1, violSet = null, animId = null;
 
-$("runbtn").addEventListener("click",()=>{
-  const lvl=LEVELS[levelIdx];
-  const {cmds,errors} = parseProgram($("code").value);
-  const ver=$("verifier"), vd=$("verdict");
-  if(errors.length){
-    ver.innerHTML = errors.map(e=>`<div class="vline bad">${esc(e)}</div>`).join("");
-    vd.className="verdict"; return;
+function resizeCanvas() {
+  const container = document.getElementById("sphere-pane");
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const size = Math.min(rect.width, rect.height) * 0.94;
+  cv.width = size * dpr;
+  cv.height = size * dpr;
+  cv.style.width = size + "px";
+  cv.style.height = size + "px";
+  render();
+}
+window.addEventListener("resize", resizeCanvas);
+
+function project(p) {
+  const cy = Math.cos(view.yaw * D2R), sy = Math.sin(view.yaw * D2R);
+  const cp = Math.cos(view.pitch * D2R), sp = Math.sin(view.pitch * D2R);
+  const x1 = p[0] * cy - p[1] * sy, y1 = p[0] * sy + p[1] * cy, z1 = p[2];
+  const x2 = x1 * cp + z1 * sp, z2 = -x1 * sp + z1 * cp;
+  return { sx: y1, sy: -z2, depth: x2 };
+}
+function screen(pr, W, Rpx) { return [W / 2 + pr.sx * Rpx, W / 2 + pr.sy * Rpx]; }
+
+function drawArcSampled(points, W, Rpx, colorFront, colorBack, width, flags) {
+  ctx.lineWidth = width; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  let prev = null;
+  for (let i = 0; i < points.length; i++) {
+    const pr = project(points[i]);
+    const [x, y] = screen(pr, W, Rpx);
+    if (prev) {
+      const front = (pr.depth >= 0 && prev.depth >= 0);
+      const bad = flags && (flags[i] || flags[i - 1]);
+      ctx.strokeStyle = bad ? (front ? "rgba(226,85,106,.95)" : "rgba(226,85,106,.28)")
+                            : (front ? colorFront : colorBack);
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(x, y); ctx.stroke();
+    }
+    prev = { x, y, depth: pr.depth };
   }
-  if(!cmds.length){
-    ver.innerHTML = `<div class="idle">The editor is empty — an empty road goes nowhere, admissibly.</div>`;
-    vd.className="verdict"; return;
+}
+function circlePoints(center, radiusDeg, n = 96) {
+  const u = Math.abs(center[2]) < .9 ? V.norm(V.cross(center, [0, 0, 1])) : V.norm(V.cross(center, [1, 0, 0]));
+  const w = V.norm(V.cross(center, u));
+  const cr = Math.cos(radiusDeg * D2R), sr = Math.sin(radiusDeg * D2R);
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * 2 * Math.PI;
+    pts.push(V.add(V.scale(center, cr), V.add(V.scale(u, sr * Math.cos(a)), V.scale(w, sr * Math.sin(a)))));
   }
+  return pts;
+}
+function drawMarker(p, W, Rpx, color, r, fill = true, glow = false) {
+  const pr = project(p); if (pr.depth < -0.02) return;
+  const [x, y] = screen(pr, W, Rpx);
+  if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 14; }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+  if (fill) { ctx.fillStyle = color; ctx.fill(); } else { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.shadowBlur = 0;
+}
+function drawNeedle(p, dir, W, Rpx, color, lenDeg) {
+  const pr = project(p); if (pr.depth < 0) return;
+  const tip = V.norm(V.add(V.scale(p, Math.cos(lenDeg * D2R)), V.scale(dir, Math.sin(lenDeg * D2R))));
+  const pt = project(tip);
+  const [x0, y0] = screen(pr, W, Rpx), [x1, y1] = screen(pt, W, Rpx);
+  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  const ang = Math.atan2(y1 - y0, x1 - x0);
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - 9 * Math.cos(ang - 0.42), y1 - 9 * Math.sin(ang - 0.42));
+  ctx.lineTo(x1 - 9 * Math.cos(ang + 0.42), y1 - 9 * Math.sin(ang + 0.42));
+  ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+}
+
+function render() {
+  const W = cv.width;
+  const Rpx = W * 0.42;
+  ctx.clearRect(0, 0, W, W);
+  const lvl = LEVELS[levelIdx];
+
+  // Sphere base disk
+  const g = ctx.createRadialGradient(W / 2 - Rpx * 0.3, W / 2 - Rpx * 0.35, Rpx * 0.1, W / 2, W / 2, Rpx * 1.05);
+  g.addColorStop(0, "#19243d");
+  g.addColorStop(0.7, "#121b2f");
+  g.addColorStop(1, "#0a101d");
+  ctx.beginPath(); ctx.arc(W / 2, W / 2, Rpx, 0, 2 * Math.PI); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = "rgba(201,165,87,.45)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Graticule latitudes
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const pts = []; for (let lon = 0; lon <= 360; lon += 4) pts.push(ll(lat, lon));
+    drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(201,165,87,.4)" : "rgba(201,165,87,.14)", "rgba(201,165,87,.04)", lat === 0 ? 1.4 : 1);
+  }
+  // Graticule meridians
+  for (let lon = 0; lon < 180; lon += 30) {
+    const pts = []; for (let lat = -90; lat <= 90; lat += 4) { pts.push(ll(lat, lon)); }
+    for (let lat = 90; lat >= -90; lat -= 4) { pts.push(ll(lat, lon + 180)); }
+    drawArcSampled(pts, W, Rpx, "rgba(201,165,87,.14)", "rgba(201,165,87,.04)", 1);
+  }
+
+  // Storm zone
+  if (lvl.storm) {
+    const c = ll(lvl.storm.lat, lvl.storm.lon);
+    for (let r = lvl.storm.radius; r > 2; r -= 4) {
+      drawArcSampled(circlePoints(c, r), W, Rpx, "rgba(226,85,106,.34)", "rgba(226,85,106,.08)", r === lvl.storm.radius ? 2 : 1);
+    }
+    drawMarker(c, W, Rpx, "rgba(226,85,106,.9)", 3);
+  }
+
+  // Target ring
+  if (lvl.target) {
+    const t = ll(lvl.target.lat, lvl.target.lon);
+    drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "rgba(95,212,196,.9)", "rgba(95,212,196,.2)", 2);
+    drawMarker(t, W, Rpx, "#5fd4c4", 3, true, true);
+  }
+
+  // Start position
+  const s = ll(lvl.start.lat, lvl.start.lon);
+  drawMarker(s, W, Rpx, "#c9a557", 5, true, true);
+
+  // Path
+  if (lastResult) {
+    const n = Math.max(2, Math.floor(lastResult.samples.length * drawProgress));
+    const pts = lastResult.samples.slice(0, n).map(o => o.p);
+    const flags = violSet ? violSet.slice(0, n) : null;
+    drawArcSampled(pts, W, Rpx, "rgba(95,212,196,.95)", "rgba(95,212,196,.22)", 2.6, flags);
+    const endP = pts[pts.length - 1];
+    drawMarker(endP, W, Rpx, "#e9e3d3", 4);
+    if (drawProgress >= 1) {
+      drawNeedle(lastResult.end, lastResult.endHeading, W, Rpx, "#5fd4c4", 10);
+      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W, Rpx, "#c9a557", 10);
+    }
+  } else {
+    const h0 = lvl.start.heading === "east" ? eastAt(s) : northAt(s);
+    drawNeedle(s, h0, W, Rpx, "#5fd4c4", 10);
+  }
+}
+
+// Drag rotation
+let dragging = false, lastX = 0, lastY = 0;
+cv.addEventListener("pointerdown", e => {
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  cv.classList.add("dragging"); cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  view.yaw += (e.clientX - lastX) * 0.4;
+  view.pitch = Math.max(-85, Math.min(85, view.pitch + (e.clientY - lastY) * 0.4));
+  lastX = e.clientX; lastY = e.clientY; render();
+});
+cv.addEventListener("pointerup", () => { dragging = false; cv.classList.remove("dragging"); });
+
+/* ========================================================================= */
+/* 5. CODE-MIRROR NEOVIM INTEGRATION                                        */
+/* ========================================================================= */
+const editor = CodeMirror.fromTextArea(document.getElementById("nvim-editor"), {
+  lineNumbers: true,
+  mode: "text/x-c++src",
+  keyMap: "vim",
+  matchBrackets: true,
+  tabSize: 4,
+  indentUnit: 4
+});
+
+// Update Neovim statusline cursor coordinates
+editor.on("cursorActivity", () => {
+  const pos = editor.getCursor();
+  document.getElementById("nvim-cursor").textContent = `ln ${pos.line + 1}, col ${pos.ch + 1}`;
+});
+
+// Update Neovim statusline mode badge
+editor.on("vim-mode-change", (e) => {
+  const badge = document.getElementById("nvim-mode");
+  if (e.mode === "normal") {
+    badge.textContent = "NORMAL";
+    badge.className = "nvim-mode mode-normal";
+  } else if (e.mode === "insert") {
+    badge.textContent = "INSERT";
+    badge.className = "nvim-mode mode-insert";
+  } else if (e.mode === "visual") {
+    badge.textContent = "VISUAL";
+    badge.className = "nvim-mode mode-visual";
+  }
+});
+
+// Custom Neovim Ex Commands: `:w`, `:next`, `:prev`
+CodeMirror.Vim.defineEx("write", "w", () => {
+  runPath();
+});
+CodeMirror.Vim.defineEx("next", "n", () => {
+  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
+});
+CodeMirror.Vim.defineEx("prev", "p", () => {
+  if (levelIdx > 0) loadLevel(levelIdx - 1);
+});
+
+// Run trigger via button or keyboard Ctrl+Enter
+document.getElementById("run-trigger").addEventListener("click", () => runPath());
+editor.setOption("extraKeys", {
+  "Ctrl-Enter": () => runPath(),
+  "Cmd-Enter": () => runPath()
+});
+
+/* ========================================================================= */
+/* 6. GAME FLOW & EXECUTION                                                 */
+/* ========================================================================= */
+function updateReadout(res) {
+  const el = document.getElementById("hud-readout");
+  if (!res) {
+    el.innerHTML = `<span>pos <b>—</b></span><span>turn <b>0°</b></span><span>len <b>0°</b></span><span>holonomy <b>—</b></span>`;
+    return;
+  }
+  const [la, lo] = toLatLon(res.end);
+  const holo = res.closureErr <= 3 ? `${res.holonomy.toFixed(1)}°` : "open loop";
+  el.innerHTML =
+    `<span>pos <b>(${la.toFixed(1)}°, ${lo.toFixed(1)}°)</b></span>` +
+    `<span>turn <b>${res.totalTurn.toFixed(0)}°</b></span>` +
+    `<span>len <b>${res.pathLen.toFixed(0)}°</b></span>` +
+    `<span>ghost <b>${holo}</b></span>`;
+}
+
+function runPath() {
+  const lvl = LEVELS[levelIdx];
+  const src = editor.getValue();
+  const { cmds, errors } = parseCppProgram(src);
+  const statusEl = document.getElementById("hud-status");
+
+  if (errors.length) {
+    statusEl.className = "hud-status fail";
+    statusEl.textContent = errors[0];
+    return;
+  }
+  if (!cmds.length) {
+    statusEl.className = "hud-status";
+    statusEl.textContent = "Empty path. Write forward(deg); or turn(deg);";
+    return;
+  }
+
   const res = simulate(lvl, cmds);
-  lastResult=res; violSet=computeViolFlags(lvl,res);
-  setReadout(res);
-
-  // animate the walk
-  if(animId) cancelAnimationFrame(animId);
-  drawProgress=0;
-  const dur = Math.min(3200, 300 + res.pathLen*11);
-  const t0=performance.now();
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function frame(t){
-    drawProgress = reduce ? 1 : Math.min(1,(t-t0)/dur);
-    render();
-    if(drawProgress<1) animId=requestAnimationFrame(frame);
-    else showChecks();
+  lastResult = res;
+  if (lvl.storm) {
+    const c = ll(lvl.storm.lat, lvl.storm.lon);
+    violSet = res.samples.map(s => gdist(s.p, c) < lvl.storm.radius);
+  } else {
+    violSet = null;
   }
-  function showChecks(){
-    const checks = lvl.spec(res);
-    ver.innerHTML = checks.map(c=>
-      `<div class="vline ${c.ok?"ok":"bad"}">${esc(c.label)} — ${esc(c.detail)}</div>`).join("");
-    const pass = checks.every(c=>c.ok);
-    if(pass){
-      done[levelIdx]=true; renderProgress();
-      vd.className="verdict pass";
-      vd.innerHTML = levelIdx<LEVELS.length-1
-        ? `<b>Admissible.</b> The road accepts you. <div class="continue"><button class="primary" id="nextlvl">Continue to the next waypoint</button></div>`
-        : `<b>Admissible.</b> You have closed the loop and the sphere itself turned your compass. The rihla, for now, is complete — drag the globe and admire what you drew.`;
-      const nb=$("nextlvl"); if(nb) nb.addEventListener("click",()=>loadLevel(levelIdx+1));
+  updateReadout(res);
+
+  if (animId) cancelAnimationFrame(animId);
+  drawProgress = 0;
+  const dur = Math.min(2800, 300 + res.pathLen * 10);
+  const t0 = performance.now();
+
+  function frame(t) {
+    drawProgress = Math.min(1, (t - t0) / dur);
+    render();
+    if (drawProgress < 1) {
+      animId = requestAnimationFrame(frame);
     } else {
-      vd.className="verdict fail";
-      const wsw = lvl.suggestions ? ` If a whisper led you here, remember: the verifier reports the road, not the voice.` : "";
-      vd.innerHTML = `<b>Not admissible.</b> The clauses marked ✗ name exactly what broke.${wsw}`;
+      const checks = lvl.spec(res);
+      const pass = checks.every(c => c.ok);
+      if (pass) {
+        completed[levelIdx] = true;
+        renderWaypoints();
+        statusEl.className = "hud-status pass";
+        statusEl.textContent = levelIdx < LEVELS.length - 1
+          ? `[✓ Q.E.D. ADMISSIBLE] Type :n for next waypoint`
+          : `[✓ 100% COMPLETE] All spherical invariants satisfied!`;
+      } else {
+        statusEl.className = "hud-status fail";
+        const bad = checks.find(c => !c.ok);
+        statusEl.textContent = `[✗ INADMISSIBLE] ${bad.label}`;
+      }
     }
   }
-  animId=requestAnimationFrame(frame);
-});
+  animId = requestAnimationFrame(frame);
+}
 
-$("clearbtn").addEventListener("click",()=>{
-  $("code").value=""; lastResult=null; violSet=null; setReadout(null);
-  $("verifier").innerHTML=`<div class="idle">Cleared. The sphere waits.</div>`;
-  const vd=$("verdict"); vd.className="verdict"; vd.innerHTML="";
+function renderWaypoints() {
+  const container = document.getElementById("hud-waypoints");
+  container.innerHTML = LEVELS.map((lvl, idx) => {
+    const isAct = idx === levelIdx ? "active" : "";
+    const isDone = completed[idx] ? "✓ " : "";
+    return `<button class="waypoint-btn ${isAct}" onclick="loadLevel(${idx})">${isDone}${idx + 1}</button>`;
+  }).join("");
+}
+
+function loadLevel(idx) {
+  levelIdx = idx;
+  const lvl = LEVELS[idx];
+  view = { ...lvl.view };
+  lastResult = null;
+  violSet = null;
+  drawProgress = 1;
+
+  document.getElementById("hud-level-title").textContent = lvl.title;
+  document.getElementById("hud-spec").textContent = lvl.specText;
+  document.getElementById("hud-status").className = "hud-status";
+  document.getElementById("hud-status").textContent = "Type :w to compile & run";
+
+  editor.setValue(lvl.code);
+  renderWaypoints();
+  updateReadout(null);
   render();
-});
+}
 
+// Initial boot
+resizeCanvas();
 loadLevel(0);
-render();
 </script>
 </body>
 </html>
