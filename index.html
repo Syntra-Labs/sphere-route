@@ -1104,12 +1104,16 @@ function primeNeovim() {
         end
       })
 
-      -- Standard BufWritePost: if user chooses to save with standard :w, also execute path
-      vim.api.nvim_create_autocmd("BufWritePost", {
+      -- Intercept :w to prevent WASI filesystem E212 errors, mark unmodified, and run path
+      vim.api.nvim_create_autocmd("BufWriteCmd", {
         pattern = "*",
         callback = function(ev)
+          vim.bo[ev.buf].modified = false
           local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, -1, false)
           vim.rpcnotify(ui_chan, 'sphere_run', lines)
+          local fname = vim.fn.expand("%:t")
+          if fname == "" then fname = "path.cpp" end
+          vim.api.nvim_echo({{'"' .. fname .. '" [written]', "Normal"}}, false, {})
         end
       })
     end
