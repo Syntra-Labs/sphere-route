@@ -17,15 +17,15 @@
 
 <style>
 :root {
-  --bg: #000000;
-  --bg-subtle: #080808;
-  --panel: #0d0d0d;
-  --panel-2: #141414;
-  --line: #222222;
-  --line-strong: #383838;
-  --fg: #ffffff;
-  --fg-dim: #777777;
-  --fg-muted: #555555;
+  --bg: #ffffff;
+  --bg-subtle: #f8f8f8;
+  --panel: #f2f2f2;
+  --panel-2: #e8e8e8;
+  --line: #e0e0e0;
+  --line-strong: #000000;
+  --fg: #000000;
+  --fg-dim: #555555;
+  --fg-muted: #888888;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   --sans: "Inter", system-ui, sans-serif;
 }
@@ -45,7 +45,7 @@ html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg
   flex: 1;
   height: 100vh;
   position: relative;
-  background: radial-gradient(circle at 50% 50%, #0d0d0d 0%, #000000 85%);
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #f4f4f4 85%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,7 +74,7 @@ canvas#sky.dragging { cursor: grabbing; }
 .hud-title-group h1 {
   font-family: var(--mono);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--fg);
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -93,9 +93,9 @@ canvas#sky.dragging { cursor: grabbing; }
   pointer-events: auto;
 }
 .waypoint-btn {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--fg-dim);
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  color: var(--fg);
   font-family: var(--mono);
   font-size: 11px;
   padding: 4px 9px;
@@ -103,8 +103,8 @@ canvas#sky.dragging { cursor: grabbing; }
   cursor: pointer;
   transition: all .15s;
 }
-.waypoint-btn:hover { border-color: var(--fg); color: var(--fg); }
-.waypoint-btn.active { border-color: var(--fg); color: var(--bg); background: var(--fg); font-weight: 600; }
+.waypoint-btn:hover { background: var(--fg); color: var(--bg); }
+.waypoint-btn.active { border-color: var(--fg); color: var(--bg); background: var(--fg); font-weight: 700; }
 
 /* Bottom HUD */
 .hud-bottom {
@@ -124,22 +124,22 @@ canvas#sky.dragging { cursor: grabbing; }
   display: flex;
   gap: 16px;
   color: var(--fg-dim);
-  background: rgba(8, 8, 8, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   padding: 6px 14px;
   border-radius: 4px;
   border: 1px solid var(--line);
   backdrop-filter: blur(6px);
 }
-.hud-readout b { color: var(--fg); font-weight: 500; }
+.hud-readout b { color: var(--fg); font-weight: 600; }
 .hud-status {
   padding: 6px 14px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
   backdrop-filter: blur(6px);
-  background: rgba(8, 8, 8, 0.85);
-  border: 1px solid var(--line);
-  color: var(--fg-dim);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--fg);
+  color: var(--fg);
 }
 .hud-status.pass {
   border-color: var(--fg);
@@ -147,9 +147,10 @@ canvas#sky.dragging { cursor: grabbing; }
   background: var(--fg);
 }
 .hud-status.fail {
-  border-color: var(--line-strong);
+  border-color: var(--fg);
   color: var(--fg);
-  background: #181818;
+  background: var(--bg-subtle);
+  border-style: dashed;
 }
 
 /* --- Right Pane: Neovim Editor --- */
@@ -163,52 +164,53 @@ canvas#sky.dragging { cursor: grabbing; }
   position: relative;
 }
 
-/* CodeMirror Neovim Monochrome Theme */
+/* CodeMirror Neovim Monochrome (Black on White) Theme */
 .CodeMirror {
   flex: 1;
   height: auto;
   font-family: var(--mono);
   font-size: 14px;
   line-height: 1.65;
-  background: var(--bg) !important;
-  color: var(--fg) !important;
+  background: #ffffff !important;
+  color: #000000 !important;
 }
 .CodeMirror-gutters {
-  background: var(--bg-subtle) !important;
-  border-right: 1px solid var(--line) !important;
+  background: #fafafa !important;
+  border-right: 1px solid #e8e8e8 !important;
 }
 .CodeMirror-linenumber {
-  color: var(--fg-muted) !important;
+  color: #a0a0a0 !important;
   padding: 0 10px 0 6px !important;
 }
 .CodeMirror-cursor {
-  border-left: 2px solid #ffffff !important;
+  border-left: 2px solid #000000 !important;
 }
 .cm-fat-cursor .CodeMirror-cursor {
-  background: #ffffff !important;
+  background: #000000 !important;
   opacity: 0.9 !important;
+  color: #ffffff !important;
 }
 .cm-animate-fat-cursor {
-  background-color: #ffffff !important;
+  background-color: #000000 !important;
   opacity: 0.9 !important;
 }
 
-/* Monochrome Syntax Highlighting */
-.cm-s-default .cm-keyword { color: #ffffff; font-weight: 700; }
-.cm-s-default .cm-def { color: #ffffff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-.cm-s-default .cm-variable { color: #e6e6e6; }
-.cm-s-default .cm-variable-2 { color: #c4c4c4; }
-.cm-s-default .cm-number { color: #ffffff; font-weight: 500; }
-.cm-s-default .cm-comment { color: #555555; font-style: italic; }
-.cm-s-default .cm-string { color: #a0a0a0; }
-.cm-s-default .cm-operator { color: #ffffff; font-weight: 600; }
-.cm-s-default .cm-meta { color: #777777; }
+/* Monochrome Syntax Highlighting (Black on White) */
+.cm-s-default .cm-keyword { color: #000000; font-weight: 700; }
+.cm-s-default .cm-def { color: #000000; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cm-s-default .cm-variable { color: #111111; }
+.cm-s-default .cm-variable-2 { color: #333333; }
+.cm-s-default .cm-number { color: #000000; font-weight: 600; }
+.cm-s-default .cm-comment { color: #777777; font-style: italic; }
+.cm-s-default .cm-string { color: #444444; }
+.cm-s-default .cm-operator { color: #000000; font-weight: 700; }
+.cm-s-default .cm-meta { color: #555555; }
 
 /* Neovim Statusline */
 .nvim-statusline {
   height: 26px;
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: #f0f0f0;
+  border-top: 1px solid #dcdcdc;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -225,27 +227,27 @@ canvas#sky.dragging { cursor: grabbing; }
   letter-spacing: .06em;
   font-size: 10.5px;
 }
-.mode-normal { background: #ffffff; color: #000000; }
-.mode-insert { background: #777777; color: #000000; }
-.mode-visual { background: #444444; color: #ffffff; }
+.mode-normal { background: #000000; color: #ffffff; }
+.mode-insert { background: #666666; color: #ffffff; }
+.mode-visual { background: #aaaaaa; color: #000000; }
 
 .nvim-file {
-  color: var(--fg-dim);
+  color: #444444;
   padding: 0 10px;
 }
-.nvim-file b { color: var(--fg); font-weight: 600; }
+.nvim-file b { color: #000000; font-weight: 600; }
 
 .nvim-info {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  color: var(--fg-dim);
+  color: #555555;
   padding-right: 10px;
 }
 .nvim-btn {
-  background: transparent;
-  border: 1px solid var(--line-strong);
-  color: var(--fg);
+  background: #ffffff;
+  border: 1px solid #000000;
+  color: #000000;
   font-family: var(--mono);
   font-size: 10.5px;
   padding: 2px 7px;
@@ -253,20 +255,20 @@ canvas#sky.dragging { cursor: grabbing; }
   cursor: pointer;
   transition: all .15s;
 }
-.nvim-btn:hover { background: #ffffff; color: #000000; border-color: #ffffff; }
+.nvim-btn:hover { background: #000000; color: #ffffff; }
 
 /* CodeMirror Dialog (Vim Command Bar `:`) */
 .CodeMirror-dialog {
-  background: #080808 !important;
-  color: #ffffff !important;
-  border-top: 1px solid var(--line) !important;
+  background: #f8f8f8 !important;
+  color: #000000 !important;
+  border-top: 1px solid #d0d0d0 !important;
   font-family: var(--mono) !important;
   font-size: 12.5px !important;
   padding: 3px 8px !important;
 }
 .CodeMirror-dialog input {
   background: transparent !important;
-  color: #ffffff !important;
+  color: #000000 !important;
   font-family: var(--mono) !important;
   font-size: 12.5px !important;
   outline: none !important;
@@ -277,56 +279,58 @@ canvas#sky.dragging { cursor: grabbing; }
 .help-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.92);
+  background: rgba(255, 255, 255, 0.98);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--line-strong);
+  border-left: 1px solid #000000;
   font-family: var(--mono);
   padding: 0;
 }
 .help-overlay.hidden { display: none; }
 .help-header {
   height: 28px;
-  background: #111111;
-  border-bottom: 1px solid var(--line);
+  background: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
   font-size: 11.5px;
-  color: var(--fg-dim);
+  color: #444444;
 }
-.help-header b { color: #ffffff; }
+.help-header b { color: #000000; }
 .help-close-btn {
   background: none;
   border: none;
-  color: var(--fg-dim);
+  color: #000000;
   font-family: var(--mono);
   cursor: pointer;
   font-size: 11px;
+  font-weight: 600;
 }
-.help-close-btn:hover { color: #ffffff; }
+.help-close-btn:hover { text-decoration: underline; }
 .help-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
   font-size: 13px;
   line-height: 1.65;
-  color: #d0d0d0;
+  color: #111111;
   white-space: pre-wrap;
 }
 .help-body h2 {
   font-size: 14px;
-  color: #ffffff;
+  color: #000000;
   margin: 14px 0 6px;
-  border-bottom: 1px solid #222222;
+  border-bottom: 1px solid #000000;
   padding-bottom: 3px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .help-body code {
-  color: #ffffff;
-  background: #181818;
+  color: #000000;
+  background: #f0f0f0;
+  border: 1px solid #d8d8d8;
   padding: 1px 4px;
   border-radius: 2px;
 }
@@ -370,7 +374,7 @@ canvas#sky.dragging { cursor: grabbing; }
         <button class="help-close-btn" id="help-close-btn">[x] :q</button>
       </div>
       <div class="help-body" id="help-text">
-*rihla.txt*   Spherical Path Studio Manual
+*rihla.txt*   Spherical Path Studio Manual (Black on White Edition)
 
 ==============================================================================
 1. C++ SPHERICAL PRIMITIVES                                      *primitives*
@@ -387,9 +391,9 @@ canvas#sky.dragging { cursor: grabbing; }
 ==============================================================================
 2. STANDARD MATH LIBRARY (<cmath>)                                   *cmath*
 
-  The full standard math environment is injected and ready to use:
+  The standard math library is available directly:
 
-  pow(base, exp)           Computes base^exp (e.g., pow(2.0, 3.0) == 8.0).
+  pow(base, exp)           Computes base^exp (e.g. pow(2.0, 3.0) == 8.0).
   sqrt(x)                  Square root of x.
   abs(x)                   Absolute value of x.
   sin(x), cos(x), tan(x)   Trigonometric functions (radians).
@@ -417,6 +421,7 @@ canvas#sky.dragging { cursor: grabbing; }
   Standard C++ functions, loops, and variables are supported:
 
       #include <rihla.hpp>
+      #include <cmath>
 
       void path() {
           double radius = pow(2.0, 5.0); // 32 degrees
@@ -446,7 +451,7 @@ canvas#sky.dragging { cursor: grabbing; }
 "use strict";
 
 /* ========================================================================= */
-/* 1. SPHERICAL GEOMETRY ENGINE (MONOCHROME MATH)                           */
+/* 1. SPHERICAL GEOMETRY ENGINE (BLACK ON WHITE MATH)                       */
 /* ========================================================================= */
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 const V = {
@@ -630,7 +635,7 @@ const LEVELS = [
 
 void path() {
     // Reach the target along the meridian
-    // You can use standard math functions like pow(2.0, 3.0), sqrt(x), etc.
+    // Standard math functions like pow(x, y), sqrt(x) are ready:
     double dist = pow(7.745966, 2.0); // ~60.0 degrees
     forward(dist);
 }
@@ -728,7 +733,7 @@ let levelIdx = 0;
 const completed = LEVELS.map(() => false);
 
 /* ========================================================================= */
-/* 4. CANVAS RENDERER (AUSTERE MONOCHROME PALETTE)                          */
+/* 4. CANVAS RENDERER (BLACK ON WHITE MONOCHROME)                           */
 /* ========================================================================= */
 const cv = document.getElementById("sky"), ctx = cv.getContext("2d");
 let view = { yaw: 0, pitch: 20 };
@@ -765,9 +770,11 @@ function drawArcSampled(points, W, Rpx, colorFront, colorBack, width, flags) {
     if (prev) {
       const front = (pr.depth >= 0 && prev.depth >= 0);
       const bad = flags && (flags[i] || flags[i - 1]);
-      ctx.strokeStyle = bad ? (front ? "#666666" : "#222222")
+      ctx.strokeStyle = bad ? (front ? "rgba(0,0,0,.9)" : "rgba(0,0,0,.3)")
                             : (front ? colorFront : colorBack);
+      if (bad) ctx.setLineDash([4, 4]); else ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(x, y); ctx.stroke();
+      ctx.setLineDash([]);
     }
     prev = { x, y, depth: pr.depth };
   }
@@ -813,61 +820,61 @@ function render() {
   ctx.clearRect(0, 0, W, W);
   const lvl = LEVELS[levelIdx];
 
-  // Sphere base disk (monochrome deep obsidian)
+  // Sphere base disk (clean white with subtle shadow and crisp black rim)
   const g = ctx.createRadialGradient(W / 2 - Rpx * 0.25, W / 2 - Rpx * 0.3, Rpx * 0.1, W / 2, W / 2, Rpx * 1.05);
-  g.addColorStop(0, "#141414");
-  g.addColorStop(0.7, "#090909");
-  g.addColorStop(1, "#000000");
+  g.addColorStop(0, "#ffffff");
+  g.addColorStop(0.7, "#f9f9f9");
+  g.addColorStop(1, "#ededed");
   ctx.beginPath(); ctx.arc(W / 2, W / 2, Rpx, 0, 2 * Math.PI); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = "#383838"; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.4; ctx.stroke();
 
   // Graticule latitudes
   for (let lat = -60; lat <= 60; lat += 30) {
     const pts = []; for (let lon = 0; lon <= 360; lon += 4) pts.push(ll(lat, lon));
-    drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(255,255,255,.32)" : "rgba(255,255,255,.11)", "rgba(255,255,255,.03)", lat === 0 ? 1.2 : 0.8);
+    drawArcSampled(pts, W, Rpx, lat === 0 ? "rgba(0,0,0,.45)" : "rgba(0,0,0,.14)", "rgba(0,0,0,.04)", lat === 0 ? 1.4 : 0.8);
   }
   // Graticule meridians
   for (let lon = 0; lon < 180; lon += 30) {
     const pts = []; for (let lat = -90; lat <= 90; lat += 4) { pts.push(ll(lat, lon)); }
     for (let lat = 90; lat >= -90; lat -= 4) { pts.push(ll(lat, lon + 180)); }
-    drawArcSampled(pts, W, Rpx, "rgba(255,255,255,.11)", "rgba(255,255,255,.03)", 0.8);
+    drawArcSampled(pts, W, Rpx, "rgba(0,0,0,.14)", "rgba(0,0,0,.04)", 0.8);
   }
 
-  // Storm zone (monochrome stippled contour)
+  // Storm zone (stippled grey concentric circles)
   if (lvl.storm) {
     const c = ll(lvl.storm.lat, lvl.storm.lon);
     for (let r = lvl.storm.radius; r > 2; r -= 4) {
-      drawArcSampled(circlePoints(c, r), W, Rpx, "rgba(255,255,255,.2)", "rgba(255,255,255,.05)", r === lvl.storm.radius ? 1.5 : 0.8);
+      drawArcSampled(circlePoints(c, r), W, Rpx, "rgba(0,0,0,.22)", "rgba(0,0,0,.06)", r === lvl.storm.radius ? 1.6 : 0.9);
     }
-    drawMarker(c, W, Rpx, "#666666", 3);
+    drawMarker(c, W, Rpx, "#000000", 3);
   }
 
-  // Target ring (crisp white contour)
+  // Target ring (crisp black contour)
   if (lvl.target) {
     const t = ll(lvl.target.lat, lvl.target.lon);
-    drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "#ffffff", "rgba(255,255,255,.25)", 1.8);
-    drawMarker(t, W, Rpx, "#ffffff", 3, true);
+    drawArcSampled(circlePoints(t, lvl.target.tol), W, Rpx, "#000000", "rgba(0,0,0,.25)", 2.0);
+    drawMarker(t, W, Rpx, "#000000", 3, true);
   }
 
-  // Start position (white node with outer halo ring)
+  // Start position (black node with outer ring)
   const s = ll(lvl.start.lat, lvl.start.lon);
-  drawMarker(s, W, Rpx, "#ffffff", 4.5, true, "#888888");
+  drawMarker(s, W, Rpx, "#000000", 4.5, true, "#888888");
 
-  // Trajectory path (monochrome high-contrast pure white)
+  // Trajectory path (crisp solid black line)
   if (lastResult) {
     const n = Math.max(2, Math.floor(lastResult.samples.length * drawProgress));
     const pts = lastResult.samples.slice(0, n).map(o => o.p);
     const flags = violSet ? violSet.slice(0, n) : null;
-    drawArcSampled(pts, W, Rpx, "#ffffff", "rgba(255,255,255,.25)", 2.4, flags);
+    drawArcSampled(pts, W, Rpx, "#000000", "rgba(0,0,0,.25)", 2.6, flags);
     const endP = pts[pts.length - 1];
-    drawMarker(endP, W, Rpx, "#ffffff", 3.5);
+    drawMarker(endP, W, Rpx, "#000000", 3.5);
     if (drawProgress >= 1) {
-      drawNeedle(lastResult.end, lastResult.endHeading, W, Rpx, "#ffffff", 10);
-      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W, Rpx, "#888888", 10, true);
+      drawNeedle(lastResult.end, lastResult.endHeading, W, Rpx, "#000000", 10);
+      drawNeedle(lastResult.end, lastResult.ghostEnd || lastResult.ghost, W, Rpx, "#666666", 10, true);
     }
   } else {
     const h0 = lvl.start.heading === "east" ? eastAt(s) : northAt(s);
-    drawNeedle(s, h0, W, Rpx, "#ffffff", 10);
+    drawNeedle(s, h0, W, Rpx, "#000000", 10);
   }
 }
 
@@ -1030,7 +1037,7 @@ function runPath() {
         renderWaypoints();
         statusEl.className = "hud-status pass";
         statusEl.textContent = levelIdx < LEVELS.length - 1
-          ? `[✓ Q.E.D. ADMISSIBLE] Type :n for next waypoint`
+          ? `[✓ ADMISSIBLE] Type :n for next waypoint`
           : `[✓ 100% COMPLETE] All spherical invariants satisfied!`;
       } else {
         statusEl.className = "hud-status fail";
