@@ -135,7 +135,7 @@ textarea#code:focus{outline:none; border-color:var(--teal-dim)}
 
 <header class="top">
   <h1><em>Rihla</em></h1>
-  <div class="sub">write a path · the sphere decides if it is admissible</div>
+  <div class="sub">write a path in C++ · the sphere decides if it is admissible</div>
   <button id="openbook" class="bookbtn">Reference book</button>
   <div class="progress" id="progress" aria-label="level progress"></div>
 </header>
@@ -174,12 +174,12 @@ textarea#code:focus{outline:none; border-color:var(--teal-dim)}
     <div class="card">
       <div class="eyebrow">Your path</div>
       <div class="editorwrap">
-        <textarea id="code" spellcheck="false" aria-label="path code editor" placeholder="// write your path here&#10;forward 60"></textarea>
+        <textarea id="code" spellcheck="false" aria-label="path code editor" placeholder="// C++ path&#10;#include &lt;rihla.hpp&gt;&#10;&#10;void path() {&#10;    forward(60.0);&#10;}"></textarea>
       </div>
       <div class="editorbar">
         <button class="run" id="runbtn">Run path</button>
         <button id="clearbtn" class="ghostbtn">Clear</button>
-        <span class="syntaxhint">forward &lt;deg&gt; · turn &lt;deg&gt; (+left −right) · // comment</span>
+        <span class="syntaxhint">forward(deg); · turn(deg); · C++ functions &amp; control flow</span>
       </div>
     </div>
 
@@ -233,19 +233,57 @@ function rodrigues(v,axis,thDeg){ const th=thDeg*D2R, c=Math.cos(th), s=Math.sin
 function gdist(a,b){ return Math.acos(Math.max(-1,Math.min(1,V.dot(a,b))))*R2D; }
 function signedAngleAt(u,v,p){ return Math.atan2(V.dot(V.cross(u,v),p), V.dot(u,v))*R2D; }
 
-/* ---------------- interpreter ---------------- */
+/* ---------------- C++ DSL runtime ---------------- */
 function parseProgram(src){
   const cmds=[], errors=[];
-  src.split(/\r?\n/).forEach((raw,i)=>{
-    const line = raw.replace(/\/\/.*$/,"").trim();
-    if(!line) return;
-    const m = line.match(/^(forward|fd|turn|t)\s+(-?\d+(?:\.\d+)?)\s*$/i);
-    if(!m){ errors.push(`line ${i+1}: could not read “${line}” — expected forward <deg> or turn <deg>`); return; }
-    const op = /^f/i.test(m[1]) ? "forward" : "turn";
-    const val = parseFloat(m[2]);
-    if(op==="forward" && (val<=0 || val>360)) errors.push(`line ${i+1}: forward wants a length between 0 and 360 degrees`);
-    else cmds.push({op, val, line:i+1});
-  });
+  let steps = 0;
+  const MAX_STEPS = 25000;
+
+  function forward(deg){
+    if(++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
+    const val = Number(deg);
+    if(isNaN(val) || val <= 0 || val > 360){
+      errors.push(`forward(${deg}): length must be between 0 and 360 degrees`);
+    } else {
+      cmds.push({op:"forward", val, line:0});
+    }
+  }
+
+  function turn(deg){
+    if(++steps > MAX_STEPS) throw new Error("Execution limit exceeded (>25,000 steps, possible infinite loop)");
+    const val = Number(deg);
+    if(isNaN(val)){
+      errors.push(`turn(${deg}): invalid turn angle`);
+    } else {
+      cmds.push({op:"turn", val, line:0});
+    }
+  }
+  const fd = forward, t = turn;
+
+  let js = src;
+  // Handle bare commands like forward 60; or turn 90;
+  js = js.replace(/^\s*(forward|fd|turn|t)\s+([-\d.]+)\s*;?\s*$/gmi, "$1($2);");
+  // Strip preprocessor directives (#include <...>, #define, etc.)
+  js = js.replace(/^\s*#.*$/gm, "");
+  // Strip using namespace ...;
+  js = js.replace(/^\s*using\s+namespace\s+[^;]+;/gm, "");
+  // Replace C++ type signatures in function headers: void path() -> function path()
+  js = js.replace(/\b(void|int|double|float|auto)\s+([a-zA-Z_]\w*)\s*\(/g, "function $2(");
+  // Replace variable type declarations: int i = 0, double angle = 90
+  js = js.replace(/\b(int|double|float|auto|size_t)\s+/g, "let ");
+  js = js.replace(/\bconst\s+(int|double|float|auto|size_t)\s+/g, "const ");
+
+  try {
+    const fn = new Function("forward", "turn", "fd", "t", `
+      ${js}
+      if(typeof path === "function") path();
+      else if(typeof run === "function") run();
+      else if(typeof main === "function") main();
+    `);
+    fn(forward, turn, fd, t);
+  } catch(err){
+    errors.push(`C++ syntax / execution error: ${err.message}`);
+  }
   return {cmds, errors};
 }
 
@@ -329,9 +367,9 @@ const LEVELS = [
            `<span class="kw">invariant:</span> dist(storm_center) ≥ 20°  <span class="kw">// checked at every point</span>`],
   suggestions:[
     {who:"Waswās", cls:"waswas", says:"The straight road is the short road. One line, traveler. Why write four?",
-     code:"forward 100"},
+     code:"forward(100.0);"},
     {who:"Rafiq", cls:"rafiq", says:"The storm does not negotiate. Bend east, pass its shoulder, bend back.",
-     code:"turn -35\nforward 55\nturn 43\nforward 55"}
+     code:"turn(-35.0);\nforward(55.0);\nturn(43.0);\nforward(55.0);"}
   ],
   spec(res){
     const c = ll(0,0);
@@ -565,17 +603,25 @@ const BOOK = [
 <p>Your program is a list of instructions. Each instruction is a <b>state transition</b>: it takes the pair of the position (p) and the heading (h) to a new pair. Nothing else exists — no hidden velocity, no memory. What the state is after a program is exactly the composition of its transitions.</p>
 <p class="aside">Coordinates on the readout are latitude and longitude in degrees. Latitude runs from −90° at the south pole to 90° at the north pole; longitude runs eastward.</p>`},
 {t:"Moving: forward", body:`
-<h3>Moving: <code>forward</code></h3>
-<p><code>forward 60</code> walks you sixty degrees along the <b>great circle</b> your heading points down — the straightest possible line on a sphere, called a geodesic. Your heading is carried along with you, staying straight the whole way.</p>
-<p>Distance here <i>is</i> an angle. On a sphere of radius (R), the arc length (s) of a walk equals the radius (R) multiplied by the central angle (θ) that the arc subtends at the sphere's center, that is s = Rθ. On our unit sphere the radius (R) is one, so the arc length (s) and the angle (θ) are the same number. Walking <code>forward 90</code> covers a quarter of the way around the world; <code>forward 360</code> brings you home along a full great circle.</p>
-<pre>forward 60      // walk 60° of great circle
-fd 25           // shorthand</pre>`},
+<h3>Moving: <code>forward(deg)</code></h3>
+<p><code>forward(60.0);</code> walks you sixty degrees along the <b>great circle</b> your heading points down — the straightest possible line on a sphere, called a geodesic. Your heading is carried along with you, staying straight the whole way.</p>
+<p>Distance here <i>is</i> an angle. On a sphere of radius (R), the arc length (s) of a walk equals the radius (R) multiplied by the central angle (θ) that the arc subtends at the sphere's center, that is s = Rθ. On our unit sphere the radius (R) is one, so the arc length (s) and the angle (θ) are the same number. Walking <code>forward(90.0);</code> covers a quarter of the way around the world; <code>forward(360.0);</code> brings you home along a full great circle.</p>
+<pre>void forward(double deg); // walk deg° of great circle
+void fd(double deg);      // shorthand
+
+// Usage:
+forward(60.0);
+fd(25.0);</pre>`},
 {t:"Turning: turn", body:`
-<h3>Turning: <code>turn</code></h3>
-<p><code>turn 90</code> rotates your heading inside the tangent plane where you stand. Positive angles turn <b>left</b> (counterclockwise, seen from outside the sphere); negative angles turn <b>right</b>. Turning moves nothing — it only chooses which great circle the next <code>forward</code> follows.</p>
-<pre>turn 90         // face left
-turn -35        // face 35° to the right
-t 45            // shorthand</pre>
+<h3>Turning: <code>turn(deg)</code></h3>
+<p><code>turn(90.0);</code> rotates your heading inside the tangent plane where you stand. Positive angles turn <b>left</b> (counterclockwise, seen from outside the sphere); negative angles turn <b>right</b>. Turning moves nothing — it only chooses which great circle the next <code>forward</code> follows.</p>
+<pre>void turn(double deg); // rotate heading in tangent plane
+void t(double deg);    // shorthand
+
+// Usage:
+turn(90.0);   // face left
+turn(-35.0);  // face 35° to the right
+t(45.0);      // shorthand</pre>
 <p>Many specs meter your turning. The quantity turning_total() is the sum of the absolute values of every turn you commanded, so a left turn and a right turn both spend from the same budget.</p>
 <p class="aside">A warning from flat paper: on the sphere, a right-angle turn does not compose the way Euclid promises. Walk two equal legs joined by a 90° turn and measure where you land — the sphere is already whispering.</p>`},
 {t:"Specs & Admissibility", body:`
@@ -584,26 +630,36 @@ t 45            // shorthand</pre>
 <p>A <b>goal</b> clause is checked once, at the end of your path — for example reach(point) within a tolerance, or closed(), which demands you end where you began.</p>
 <p>An <b>invariant</b> clause is checked at <i>every point</i> along the path, not just the end. A path that dips inside a storm for a single degree of arc is inadmissible, however cleanly it arrives.</p>
 <p>A <b>step</b> clause constrains each individual transition, comparing the state before (s) with the state after (s′) — for example a bound on any single leg's length. The waypoints in this prototype use goals and invariants.</p>
-<p>At some crossroads, voices offer you code. Their fragments are ordinary code — insert them, edit them, ignore them. The <b>verifier</b> beneath the editor is the only referee: it checks every clause honestly and, when one breaks, names the first point of breach. It reports the road, not the voice.</p>`},
+<p>At some crossroads, voices offer you code. Their fragments are ordinary C++ code — insert them, edit them, ignore them. The <b>verifier</b> beneath the editor is the only referee: it checks every clause honestly and, when one breaks, names the first point of breach. It reports the road, not the voice.</p>`},
 {t:"The Ghost Compass", body:`
 <h3>The Ghost Compass &amp; Holonomy</h3>
 <p>Beside you rides a brass needle: the <b>ghost compass</b>. It never feels your <code>turn</code> commands. It is carried by <b>parallel transport</b> — moved along each geodesic leg as straight as the ground allows, rotated only by the shape of the sphere itself.</p>
 <p>Walk any closed loop and the needle comes home rotated. That rotation is the <b>holonomy</b> of the loop, and it equals the enclosed area divided by the square of the radius: the holonomy angle (φ) satisfies φ = A / R², where the area (A) is what your loop encloses and the radius (R) is the sphere's. On our unit sphere the radius (R) is one, so the holonomy angle (φ) simply equals the enclosed area (A), measured in the same degrees.</p>
 <p>This is Gauss–Bonnet wearing walking boots. For a geodesic triangle, the angular excess (E) — the sum of the three interior angles minus 180° — equals the enclosed area (A). The triangle with one corner at your feet on the equator, one at the north pole, and one a quarter-world east has three right angles: its excess (E) is 3 × 90° − 180° = 90°, so its area (A) is 90°, so a walk around it rotates the ghost compass by 90°.</p>
-<pre>forward 90
-turn 90
-forward 90
-turn 90
-forward 90
-turn 90        // home — ghost compass rotated 90°</pre>
+<pre>// Closed 90°-90°-90° spherical triangle:
+for (int i = 0; i < 3; ++i) {
+    forward(90.0);
+    turn(90.0);
+}
+// Home! Ghost compass rotated 90°</pre>
 <p class="aside">Curvature is a currency and loops are how you spend it: rotation of the transported frame costs enclosed area, and enclosing area costs perimeter walked.</p>`},
-{t:"Syntax", body:`
-<h3>Syntax</h3>
-<p>A program is a sequence of lines. Blank lines are ignored; anything after <code>//</code> is a comment. Each remaining line is one instruction.</p>
-<pre>forward &lt;degrees&gt;    // walk the current great circle; also: fd
-turn &lt;degrees&gt;       // rotate heading; + left, − right; also: t
-// a comment</pre>
-<p>Forward lengths must lie between 0 and 360 degrees. Turn angles may be any signed number. The parser reports the line number of anything it cannot read, and an unreadable program is never run.</p>
+{t:"C++ DSL & Syntax", body:`
+<h3>C++ DSL &amp; Syntax</h3>
+<p>Programs are written in <b>standard C++</b>. You can write top-level function calls, or wrap your logic in a function like <code>void path()</code> or <code>int main()</code>.</p>
+<pre>#include &lt;rihla.hpp&gt;
+
+void path() {
+    double leg = 45.0;
+    forward(leg);
+    turn(-30.0);
+    
+    // Loops and standard C++ control flow are fully supported:
+    for (int i = 0; i &lt; 2; ++i) {
+        forward(30.0);
+        turn(45.0);
+    }
+}</pre>
+<p>Forward lengths must lie between 0 and 360 degrees. Turn angles may be any signed number. All calculations and graphics run 100% client-side in your browser.</p>
 <p class="aside">The readout beneath the globe reports your end position, total turning spent, total path length, and — once a loop closes — the ghost compass rotation.</p>`}
 ];
 let bookCh = 0;
