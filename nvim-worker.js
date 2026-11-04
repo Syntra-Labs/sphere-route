@@ -175,9 +175,9 @@ async function startNvim({ cols, rows, assetVersion }) {
   const stdoutFd = new SinkFd(handleStdout);
   const stderrFd = new SinkFd(handleStderr);
 
-  const preopen = new RootedPreopenDirectory("nvim", fsRoot.contents);
+  const preopen = new RootedPreopenDirectory("/nvim", fsRoot.contents);
   const tmp = fsRoot.contents.get("tmp")?.contents || new Map();
-  const preopenTmp = new RootedPreopenDirectory("tmp", tmp);
+  const preopenTmp = new RootedPreopenDirectory("/tmp", tmp);
   const preopenDot = new RootedPreopenDirectory(".", fsRoot.contents);
   const preopenRoot = new RootedPreopenDirectory("/", fsRoot.contents);
 
@@ -625,6 +625,7 @@ function handleRedraw(events) {
           const [id, rgbAttr] = entry;
           uiState.defineHl(id, rgbAttr || {});
         }
+        dirty = true;
         break;
       }
       case "mode_change": {
@@ -967,6 +968,7 @@ function buildFs(entries) {
   ensureDir(root, "home/.config");
   ensureDir(root, "home/.local/share");
   ensureDir(root, "home/.local/state");
+  root.contents.set("nvim", root);
   const starterCode = `#include <sphere.hpp>
 #include <cmath>
 

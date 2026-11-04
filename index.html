@@ -1063,7 +1063,7 @@ function primeNeovim() {
   // - Keymaps: <leader>r (<Space>r), <F5>, <C-CR>, <leader>m (<Space>m), <F1>, <leader>n, <leader>p
   // - Official built-in commands (:w, :help, :q, motions) are 100% UNTOUCHED
   const lua = `
-    local ui_chan = (vim.api.nvim_get_api_info() or {})[1]
+    local ui_chan = 1
     if ui_chan then
       vim.g.mapleader = " "
       vim.g.maplocalleader = " "
@@ -1084,6 +1084,16 @@ function primeNeovim() {
       vim.api.nvim_create_user_command("Manual", open_sphere_manual, { desc = "Open reference manual" })
       vim.api.nvim_create_user_command("Next", function() vim.rpcnotify(ui_chan, 'sphere_next') end, { desc = "Next level" })
       vim.api.nvim_create_user_command("Prev", function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { desc = "Previous level" })
+      vim.api.nvim_create_user_command("NextLevel", function() vim.rpcnotify(ui_chan, 'sphere_next') end, { desc = "Next level" })
+      vim.api.nvim_create_user_command("PrevLevel", function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { desc = "Previous level" })
+
+      -- Command line abbreviations so :Next/:next and :Prev/:prev route to sphere levels instead of arglist
+      vim.cmd([[
+        cnoreabbrev <expr> Next (getcmdtype() == ':' && getcmdline() == 'Next') ? 'lua vim.rpcnotify(1, "sphere_next")' : 'Next'
+        cnoreabbrev <expr> next (getcmdtype() == ':' && getcmdline() == 'next') ? 'lua vim.rpcnotify(1, "sphere_next")' : 'next'
+        cnoreabbrev <expr> Prev (getcmdtype() == ':' && getcmdline() == 'Prev') ? 'lua vim.rpcnotify(1, "sphere_prev")' : 'Prev'
+        cnoreabbrev <expr> prev (getcmdtype() == ':' && getcmdline() == 'prev') ? 'lua vim.rpcnotify(1, "sphere_prev")' : 'prev'
+      ]])
 
       -- Custom keybindings using unused keys and leader keymaps
       vim.keymap.set('n', '<leader>r', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
