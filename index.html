@@ -220,20 +220,28 @@ body.is-resizing canvas#sky {
   white-space: pre;
   overflow: hidden;
   outline: none;
-  padding: 8px 12px;
+  padding: 4px 0;
+  margin: 0;
   background: #ffffff;
   color: #000000;
   cursor: text;
-  user-select: text;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .nvim-grid:focus {
   outline: none;
 }
 
-.cursor {
+#nvim-grid .cursor {
   background: #000000 !important;
   color: #ffffff !important;
+}
+#nvim-grid .cursor-bar {
+  box-shadow: inset 2px 0 0 0 #000000 !important;
+}
+#nvim-grid .cursor-underline {
+  box-shadow: inset 0 -2px 0 0 #000000 !important;
 }
 
 /* Neovim Statusline */
@@ -956,24 +964,39 @@ const pendingRpcResolvers = new Map();
 let workerReady = false;
 let primeSent = false;
 let pendingChunks = [];
-let pendingKeys = "";
-let pendingKeysScheduled = false;
 let currentBufferText = "";
 let cols = 80, rows = 30;
+let lastCharW = 8.1, lastCharH = 19.575;
 
 function computeGridDimensions() {
   const container = document.getElementById("nvim-container");
   const rect = container.getBoundingClientRect();
-  const charW = 8.15;
-  const charH = 19.5;
-  const c = Math.max(30, Math.floor((rect.width - 24) / charW));
-  const r = Math.max(12, Math.floor((rect.height - 16) / charH));
+  let charW = 8.1;
+  let charH = 19.575;
+  const probe = document.createElement("span");
+  probe.style.fontFamily = 'var(--mono)';
+  probe.style.fontSize = "13.5px";
+  probe.style.lineHeight = "1.45";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.whiteSpace = "pre";
+  probe.textContent = "01234567890123456789";
+  container.appendChild(probe);
+  const pRect = probe.getBoundingClientRect();
+  container.removeChild(probe);
+  if (pRect.width > 0) charW = pRect.width / 20;
+  if (pRect.height > 0) charH = pRect.height;
+  lastCharW = charW;
+  lastCharH = charH;
+
+  const cs = window.getComputedStyle(gridEl);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const c = Math.max(30, Math.floor((rect.width - padX) / charW));
+  const r = Math.max(12, Math.floor((rect.height - padY) / charH));
   return { cols: c, rows: r };
 }
 
-window.sendRpc = sendRpc;
-window.setBufferCode = setBufferCode;
-window.enqueueInput = enqueueInput;
 function startNeovimWasm() {
   const dims = computeGridDimensions();
   cols = dims.cols;
@@ -997,6 +1020,7 @@ function sendRpc(method, params = []) {
     pendingRpcResolvers.set(curId, { resolve, reject });
   });
 }
+window.sendRpc = sendRpc;
 
 function sendRpcNotify(method, params = []) {
   const payload = [2, method, params];
@@ -1018,56 +1042,124 @@ function sendRpcResponse(requestId, error, result) {
   worker.postMessage({ type: "stdin", chunk }, [chunk.buffer]);
 }
 
-function enqueueInput(keys) {
-  pendingKeys += keys;
-  if (pendingKeysScheduled) return;
-  pendingKeysScheduled = true;
-  queueMicrotask(() => {
-    pendingKeysScheduled = false;
-    const k = pendingKeys;
-    pendingKeys = "";
-    if (k) sendRpc("nvim_input", [k]);
-  });
+let inputInFlight = false;
+let inputInFlightTimer = null;
+const inputQueue = [];
+
+function notifyInputDrawn() {
+  if (inputInFlight) {
+    if (inputInFlightTimer) {
+      clearTimeout(inputInFlightTimer);
+      inputInFlightTimer = null;
+    }
+    inputInFlight = false;
+    pumpInputQueue();
+  }
+}
+
+function pumpInputQueue() {
+  if (inputInFlight || inputQueue.length === 0 || !workerReady) return;
+  const item = inputQueue.shift();
+  inputInFlight = true;
+  inputInFlightTimer = setTimeout(() => {
+    inputInFlightTimer = null;
+    inputInFlight = false;
+    pumpInputQueue();
+  }, 45);
+  sendRpc("nvim_input", [item.keys]);
+}
+
+function enqueueInput(keys, isRepeat = false) {
+  if (!keys) return;
+  if (isRepeat) {
+    const pendingCount = inputQueue.filter(item => item.keys === keys && item.isRepeat).length;
+    if (pendingCount >= 1) return;
+  }
+  inputQueue.push({ keys, isRepeat });
+  pumpInputQueue();
+}
+window.enqueueInput = enqueueInput;
+
+function clearRepeatQueue(keys) {
+  if (!keys) return;
+  for (let i = inputQueue.length - 1; i >= 0; i--) {
+    if (inputQueue[i].keys === keys && inputQueue[i].isRepeat) {
+      inputQueue.splice(i, 1);
+    }
+  }
 }
 
 function primeNeovim() {
   primeSent = true;
   sendRpc("nvim_ui_attach", [cols, rows, { rgb: true, ext_linegrid: true, ext_hlstate: true }]);
   sendRpc("nvim_ui_set_focus", [true]);
-  sendRpc("nvim_command", ["set noswapfile"]);
-  sendRpc("nvim_command", ["set nobackup"]);
-  sendRpc("nvim_command", ["set nowritebackup"]);
-  sendRpc("nvim_command", ["set noundofile"]);
-  sendRpc("nvim_command", ["set noreadonly"]);
-  sendRpc("nvim_command", ["set number"]);
-  sendRpc("nvim_command", ["set background=light"]);
-  sendRpc("nvim_command", ["set fillchars=eob:~"]);
+  sendRpc("nvim_command", ["set noswapfile nobackup nowritebackup noundofile noreadonly"]);
+  sendRpc("nvim_command", ["set number background=light fillchars=eob:~ mouse=a mousemodel=extend mousescroll=ver:1,hor:2"]);
   sendRpc("nvim_command", ["set tabstop=4 shiftwidth=4 softtabstop=4 expandtab autoindent smartindent"]);
+  sendRpc("nvim_command", ["filetype plugin indent on"]);
+  sendRpc("nvim_command", ["syntax enable"]);
 
-  // Inverted / black-on-white highlights
-  sendRpc("nvim_command", ["highlight Normal guibg=#ffffff guifg=#000000"]);
-  sendRpc("nvim_command", ["highlight LineNr guibg=#fafafa guifg=#888888"]);
-  sendRpc("nvim_command", ["highlight CursorLineNr guibg=#fafafa guifg=#000000 gui=bold"]);
-  sendRpc("nvim_command", ["highlight StatusLine guibg=#f0f0f0 guifg=#000000 gui=none"]);
-  sendRpc("nvim_command", ["highlight StatusLineNC guibg=#f0f0f0 guifg=#666666 gui=none"]);
-  sendRpc("nvim_command", ["highlight Cursor guibg=#000000 guifg=#ffffff"]);
-  sendRpc("nvim_command", ["highlight Comment guifg=#777777 gui=italic"]);
-  sendRpc("nvim_command", ["highlight Keyword guifg=#000000 gui=bold"]);
-  sendRpc("nvim_command", ["highlight Type guifg=#000000 gui=bold"]);
-  sendRpc("nvim_command", ["highlight String guifg=#333333"]);
-  sendRpc("nvim_command", ["highlight Number guifg=#000000 gui=bold"]);
-
-  // Setup Lua integration using non-colliding standard idioms:
-  // - Leader key: <Space>
-  // - Custom User Ex commands: :Run, :R, :Manual, :Next, :Prev
-  // - Keymaps: <leader>r (<Space>r), <F5>, <C-CR>, <leader>m (<Space>m), <F1>, <leader>n, <leader>p
-  // - Official built-in commands (:w, :help, :q, motions) are 100% UNTOUCHED
   const lua = `
     if vim.uv and not vim.uv.os_uname() then
       vim.uv.os_uname = function()
         return { sysname = "Linux", release = "0.0", version = "WASI", machine = "wasm32" }
       end
     end
+
+    local function apply_editorial_highlights()
+      local mono_groups = {
+        "Normal", "Identifier", "Function", "Statement", "Conditional", "Repeat",
+        "Label", "Operator", "Exception", "Include", "Define", "Macro", "PreCondit",
+        "StorageClass", "Structure", "Typedef", "Special", "SpecialChar", "Tag",
+        "Delimiter", "Debug", "Constant", "Character", "Boolean", "Float"
+      }
+      for _, g in ipairs(mono_groups) do
+        vim.api.nvim_set_hl(0, g, { fg = "#000000", bg = "NONE" })
+      end
+      vim.api.nvim_set_hl(0, "Normal", { fg = "#000000", bg = "#ffffff" })
+      vim.api.nvim_set_hl(0, "Visual", { fg = "#000000", bg = "#dcdcdc" })
+      vim.api.nvim_set_hl(0, "LineNr", { fg = "#888888", bg = "#fafafa" })
+      vim.api.nvim_set_hl(0, "CursorLineNr", { fg = "#000000", bg = "#fafafa", bold = true })
+      vim.api.nvim_set_hl(0, "StatusLine", { fg = "#000000", bg = "#f0f0f0" })
+      vim.api.nvim_set_hl(0, "StatusLineNC", { fg = "#666666", bg = "#f0f0f0" })
+      vim.api.nvim_set_hl(0, "Cursor", { fg = "#ffffff", bg = "#000000" })
+      vim.api.nvim_set_hl(0, "Comment", { fg = "#777777", italic = true })
+      vim.api.nvim_set_hl(0, "SpecialComment", { fg = "#777777", italic = true })
+      vim.api.nvim_set_hl(0, "Todo", { fg = "#777777", italic = true })
+      vim.api.nvim_set_hl(0, "Keyword", { fg = "#000000", bold = true })
+      vim.api.nvim_set_hl(0, "Type", { fg = "#000000", bold = true })
+      vim.api.nvim_set_hl(0, "PreProc", { fg = "#333333" })
+      vim.api.nvim_set_hl(0, "String", { fg = "#333333" })
+      vim.api.nvim_set_hl(0, "Number", { fg = "#000000", bold = true })
+    end
+
+    apply_editorial_highlights()
+    vim.api.nvim_create_autocmd("ColorScheme", {
+      pattern = "*",
+      callback = apply_editorial_highlights,
+    })
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "*",
+      callback = function(ev)
+        local ft = ev.match
+        if ft and ft ~= "" then
+          pcall(vim.cmd, "runtime! ftplugin/" .. ft .. ".vim")
+          pcall(vim.cmd, "runtime! indent/" .. ft .. ".vim")
+        end
+        apply_editorial_highlights()
+      end,
+    })
+    vim.api.nvim_create_autocmd("Syntax", {
+      pattern = "*",
+      callback = function(ev)
+        local syn = ev.match
+        if syn and syn ~= "" and not vim.b[ev.buf].current_syntax then
+          pcall(vim.cmd, "runtime! syntax/" .. syn .. ".vim")
+          pcall(vim.cmd, "runtime! syntax/" .. syn .. ".lua")
+        end
+        apply_editorial_highlights()
+      end,
+    })
 
     package.loaded["vim.snippet"] = {
       active = function() return false end,
@@ -1093,7 +1185,7 @@ function primeNeovim() {
         vim.rpcnotify(ui_chan, 'sphere_manual')
       end
 
-      -- Uppercase user Ex commands (official Vim standard for custom commands)
+      -- Uppercase user Ex commands
       vim.api.nvim_create_user_command("Run", execute_sphere_path, { desc = "Run path on sphere" })
       vim.api.nvim_create_user_command("R", execute_sphere_path, { desc = "Run path on sphere" })
       vim.api.nvim_create_user_command("Manual", open_sphere_manual, { desc = "Open reference manual" })
@@ -1101,6 +1193,7 @@ function primeNeovim() {
       vim.api.nvim_create_user_command("Prev", function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { desc = "Previous level" })
       vim.api.nvim_create_user_command("NextLevel", function() vim.rpcnotify(ui_chan, 'sphere_next') end, { desc = "Next level" })
       vim.api.nvim_create_user_command("PrevLevel", function() vim.rpcnotify(ui_chan, 'sphere_prev') end, { desc = "Previous level" })
+      vim.api.nvim_create_user_command("Reset", function() vim.rpcnotify(ui_chan, 'sphere_reset') end, { desc = "Reset level to starter code" })
 
       -- Command line abbreviations so :Next/:next and :Prev/:prev route to sphere levels instead of arglist
       vim.cmd([[
@@ -1110,7 +1203,7 @@ function primeNeovim() {
         cnoreabbrev <expr> prev (getcmdtype() == ':' && getcmdline() == 'prev') ? 'lua vim.rpcnotify(1, "sphere_prev")' : 'prev'
       ]])
 
-      -- Custom keybindings using unused keys and leader keymaps
+      -- Custom keybindings
       vim.keymap.set('n', '<leader>r', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
       vim.keymap.set('n', '<leader><CR>', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
       vim.keymap.set({'n', 'i'}, '<F5>', execute_sphere_path, { silent = true, desc = "Run path on sphere" })
@@ -1141,31 +1234,51 @@ function primeNeovim() {
           vim.api.nvim_echo({{'"' .. fname .. '" [written]', "Normal"}}, false, {})
         end
       })
+
+      _G.sphere_scroll = function(dy, dx)
+        local v = vim.fn.winsaveview()
+        local total_lines = vim.fn.line('$')
+        local height = vim.api.nvim_win_get_height(0)
+        if dy and dy ~= 0 then
+          local new_top = math.max(1, math.min(total_lines, v.topline + dy))
+          v.topline = new_top
+          if v.lnum < new_top then
+            v.lnum = new_top
+          elseif v.lnum >= new_top + height then
+            v.lnum = math.max(1, new_top + height - 1)
+          end
+        end
+        if dx and dx ~= 0 then
+          v.leftcol = math.max(0, (v.leftcol or 0) + dx)
+        end
+        vim.fn.winrestview(v)
+      end
     end
   `;
   sendRpc("nvim_exec_lua", [lua, []]);
 
-  // Load starter level into path.cpp
-  setBufferCode(LEVELS[levelIdx].code);
+  // Load starter or persisted level into path.cpp
+  const saved = localStorage.getItem(`sphere_route_code_${levelIdx}`);
+  setBufferCode(saved !== null ? saved : LEVELS[levelIdx].code);
 
   // Hide splash
   splashEl.classList.add("hidden");
   document.getElementById("hud-status").textContent = "Type :Run or press <Space>r / <F5> to execute · :Manual for manual";
 }
 
-function setBufferCode(codeStr) {
+function setBufferCode(codeStr, filename) {
   currentBufferText = codeStr;
-  const lines = codeStr.split(/\r?\n/);
+  const lines = String(codeStr || "").split(/\r?\n/);
+  const fn = filename || "path.cpp";
   const lua = `
-    local lines = ...
+    local lines, fn = ...
     local buf = vim.api.nvim_get_current_buf()
-    if vim.api.nvim_buf_get_name(buf) == "" then
-      pcall(vim.api.nvim_buf_set_name, buf, "path.cpp")
-    end
+    pcall(vim.api.nvim_buf_set_name, buf, fn)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.bo[buf].filetype = "cpp"
+    vim.bo[buf].syntax = "cpp"
     vim.bo[buf].readonly = false
-    vim.bo[buf].buftype = ""
+    vim.bo[buf].buftype = "acwrite"
     vim.bo[buf].modified = false
     vim.bo[buf].tabstop = 4
     vim.bo[buf].shiftwidth = 4
@@ -1173,15 +1286,31 @@ function setBufferCode(codeStr) {
     vim.bo[buf].expandtab = true
     vim.api.nvim_win_set_cursor(0, {1, 0})
   `;
-  sendRpc("nvim_exec_lua", [lua, [lines]]).then(() => {
+  sendRpc("nvim_exec_lua", [lua, [lines, fn]]).then(() => {
     runPathWithText(codeStr);
   });
+}
+window.setBufferCode = setBufferCode;
+
+function resetCurrentLevel() {
+  localStorage.removeItem(`sphere_route_code_${levelIdx}`);
+  if (workerReady) {
+    setBufferCode(LEVELS[levelIdx].code);
+  }
 }
 
 function handleWorkerMessage(event) {
   const { type } = event.data || {};
   if (type === "draw-text") {
-    renderGrid(event.data.cells, event.data.cursor, event.data.cursorHlId, event.data.mode, event.data.hls);
+    renderGrid(
+      event.data.cells,
+      event.data.cursor,
+      event.data.cursorHlId,
+      event.data.cursorShape,
+      event.data.mode,
+      event.data.hls
+    );
+    notifyInputDrawn();
   } else if (type === "response") {
     const resolver = pendingRpcResolvers.get(event.data.msgid);
     if (resolver) {
@@ -1193,10 +1322,13 @@ function handleWorkerMessage(event) {
     const { method, params } = event.data;
     if (method === "sphere_run") {
       const lines = params?.[0] || [];
-      runPathWithText(lines.join("\n"));
+      currentBufferText = lines.join("\n");
+      localStorage.setItem(`sphere_route_code_${levelIdx}`, currentBufferText);
+      runPathWithText(currentBufferText);
     } else if (method === "sphere_change") {
       const lines = params?.[0] || [];
       currentBufferText = lines.join("\n");
+      localStorage.setItem(`sphere_route_code_${levelIdx}`, currentBufferText);
     } else if (method === "sphere_manual" || method === "sphere_help") {
       openHelp();
     } else if (method === "sphere_close_help") {
@@ -1205,6 +1337,8 @@ function handleWorkerMessage(event) {
       if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
     } else if (method === "sphere_prev") {
       if (levelIdx > 0) loadLevel(levelIdx - 1);
+    } else if (method === "sphere_reset") {
+      resetCurrentLevel();
     }
   } else if (type === "ready") {
     workerReady = true;
@@ -1213,6 +1347,7 @@ function handleWorkerMessage(event) {
     }
     pendingChunks = [];
     if (!primeSent) primeNeovim();
+    pumpInputQueue();
   } else if (type === "clipboard-copy") {
     const text = (event.data.lines || []).join("\n");
     if (navigator.clipboard?.writeText) {
@@ -1222,8 +1357,7 @@ function handleWorkerMessage(event) {
     const req = event.data.requestId;
     if (navigator.clipboard?.readText) {
       navigator.clipboard.readText().then(text => {
-        const lines = String(text || "").split(/\r?\n/);
-        sendRpcResponse(req, null, [lines, "v"]);
+        sendRpcResponse(req, null, [String(text || "").split(/\r?\n/), "v"]);
       }).catch(() => {
         sendRpcResponse(req, null, [[], "v"]);
       });
@@ -1237,40 +1371,85 @@ function handleWorkerMessage(event) {
   }
 }
 
-function renderGrid(cells = [], cursor = null, cursorHlId = 0, mode = "normal", hls = {}) {
-  const rows = Array.isArray(cells) && cells.length ? cells : [];
-  const cur = cursor || { row: 0, col: 0 };
-  const row = Math.max(0, Math.min(cur.row || 0, rows.length ? rows.length - 1 : 0));
+let activeGridId = 0;
+
+const hlStyleCache = new Map();
+let lastHlMap = null;
+
+function getCachedHlStyle(map, id) {
+  if (map !== lastHlMap) {
+    hlStyleCache.clear();
+    lastHlMap = map;
+  }
+  const key = id != null && map[id] !== undefined ? id : 0;
+  let cached = hlStyleCache.get(key);
+  if (cached !== undefined) return cached;
+  const attr = getHl(map, key, false);
+  cached = styleFromHl(attr);
+  hlStyleCache.set(key, cached);
+  return cached;
+}
+
+function renderGrid(cells = [], cursor = null, cursorHlId = 0, cursorShape = "block", mode = "normal", hls = {}) {
+  const rowsArr = Array.isArray(cells) && cells.length ? cells : [];
+  const cur = cursor || { grid: 1, row: 0, col: 0 };
+  if (Number.isFinite(Number(cur.grid))) activeGridId = Number(cur.grid);
+  const row = Math.max(0, Math.min(cur.row || 0, rowsArr.length ? rowsArr.length - 1 : 0));
   const col = Math.max(0, cur.col || 0);
   const hlMap = hls || {};
 
   cursorBadge.textContent = `ln ${row + 1}, col ${col + 1}`;
   updateModeBadge(mode);
+  const cursorClass = cursorShape === "vertical"
+    ? "cursor-bar"
+    : (cursorShape === "horizontal" ? "cursor-underline" : "cursor");
 
   let html = "";
-  for (let r = 0; r < rows.length; r += 1) {
-    const rowCells = Array.isArray(rows[r]) ? rows[r] : [];
+  for (let r = 0; r < rowsArr.length; r += 1) {
+    const rowCells = Array.isArray(rowsArr[r]) ? rowsArr[r] : [];
     const lineLen = rowCells.length;
+
+    let curText = "";
+    let curStyle = null;
+
     for (let c = 0; c < lineLen; c += 1) {
       const cell = rowCells[c] || {};
       const ch = escapeChar(cell.ch || " ");
       const isCursor = (r === row && c === col);
-      const attr = isCursor ? getHl(hlMap, cursorHlId, true) : getHl(hlMap, cell.hl, false);
-      const style = styleFromHl(attr);
 
       if (isCursor) {
-        html += `<span class="cursor" style="${style}">${ch}</span>`;
-      } else if (style) {
-        html += `<span style="${style}">${ch}</span>`;
+        if (curText) {
+          html += curStyle ? `<span style="${curStyle}">${curText}</span>` : curText;
+          curText = "";
+          curStyle = null;
+        }
+        const useBlockCursor = (cursorClass === "cursor");
+        const attr = useBlockCursor ? getHl(hlMap, cursorHlId, true) : getHl(hlMap, cell.hl, false);
+        const style = styleFromHl(attr);
+        html += `<span class="${cursorClass}" style="${style}">${ch}</span>`;
       } else {
-        html += ch;
+        const style = getCachedHlStyle(hlMap, cell.hl);
+        if (curText && style === curStyle) {
+          curText += ch;
+        } else {
+          if (curText) {
+            html += curStyle ? `<span style="${curStyle}">${curText}</span>` : curText;
+          }
+          curText = ch;
+          curStyle = style;
+        }
       }
     }
+
+    if (curText) {
+      html += curStyle ? `<span style="${curStyle}">${curText}</span>` : curText;
+    }
+
     if (r === row && col >= lineLen) {
       html += " ".repeat(col - lineLen);
-      html += `<span class="cursor"> </span>`;
+      html += `<span class="${cursorClass}"> </span>`;
     }
-    if (r < rows.length - 1) html += "\n";
+    if (r < rowsArr.length - 1) html += "\n";
   }
 
   gridEl.innerHTML = html || " ";
@@ -1361,9 +1540,140 @@ function translateKey(ev) {
   return null;
 }
 
-gridEl.addEventListener("click", () => {
+function mouseModifierStr(ev) {
+  let mod = "";
+  if (ev.shiftKey) mod += "S";
+  if (ev.ctrlKey) mod += "C";
+  if (ev.altKey) mod += "A";
+  return mod;
+}
+
+function mouseCoordsToCell(ev) {
+  const rect = gridEl.getBoundingClientRect();
+  const cs = window.getComputedStyle(gridEl);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padT = parseFloat(cs.paddingTop) || 0;
+  const c = Math.max(0, Math.min(cols - 1, Math.floor((ev.clientX - rect.left - padL) / lastCharW)));
+  const r = Math.max(0, Math.min(rows - 1, Math.floor((ev.clientY - rect.top - padT) / lastCharH)));
+  return { row: r, col: c };
+}
+
+function mouseButtonName(btn) {
+  if (btn === 1) return "middle";
+  if (btn === 2) return "right";
+  return "left";
+}
+
+let activeMouseBtn = null;
+let lastDragCell = { row: -1, col: -1 };
+let dragInFlight = false;
+let pendingDragTarget = null;
+
+function processPendingDrag() {
+  if (dragInFlight || !pendingDragTarget || !workerReady) return;
+  const target = pendingDragTarget;
+  pendingDragTarget = null;
+  dragInFlight = true;
+  sendRpc("nvim_input_mouse", [
+    activeMouseBtn || "left",
+    "drag",
+    target.mod,
+    0,
+    target.row,
+    target.col
+  ]).finally(() => {
+    dragInFlight = false;
+    if (pendingDragTarget) processPendingDrag();
+  });
+}
+
+gridEl.addEventListener("mousedown", (ev) => {
   gridEl.focus();
+  if (!workerReady) return;
+  ev.preventDefault();
+  activeMouseBtn = mouseButtonName(ev.button);
+  const { row, col } = mouseCoordsToCell(ev);
+  lastDragCell = { row, col };
+  pendingDragTarget = null;
+  sendRpc("nvim_input_mouse", [activeMouseBtn, "press", mouseModifierStr(ev), 0, row, col]);
 });
+
+window.addEventListener("mousemove", (ev) => {
+  if (!activeMouseBtn || !workerReady) return;
+  const { row, col } = mouseCoordsToCell(ev);
+  if (row === lastDragCell.row && col === lastDragCell.col) return;
+  lastDragCell = { row, col };
+  pendingDragTarget = { row, col, mod: mouseModifierStr(ev) };
+  processPendingDrag();
+});
+
+window.addEventListener("mouseup", (ev) => {
+  if (!activeMouseBtn || !workerReady) return;
+  const btn = activeMouseBtn;
+  activeMouseBtn = null;
+  pendingDragTarget = null;
+  const { row, col } = mouseCoordsToCell(ev);
+  sendRpc("nvim_input_mouse", [btn, "release", mouseModifierStr(ev), 0, row, col]);
+});
+
+gridEl.addEventListener("contextmenu", (ev) => ev.preventDefault());
+
+let pendingWheelLines = 0;
+let pendingWheelCols = 0;
+let wheelInFlight = false;
+
+function dispatchWheelScroll(lines, cols) {
+  if (lines === 0 && cols === 0) return;
+
+  if (wheelInFlight) {
+    pendingWheelLines += lines;
+    pendingWheelCols += cols;
+    const maxLines = (rows || 30);
+    if (Math.abs(pendingWheelLines) > maxLines) {
+      pendingWheelLines = Math.sign(pendingWheelLines) * maxLines;
+    }
+    return;
+  }
+
+  wheelInFlight = true;
+  sendRpc("nvim_exec_lua", ["_G.sphere_scroll(..., ...)", [lines, cols]]).finally(() => {
+    wheelInFlight = false;
+    if (pendingWheelLines !== 0 || pendingWheelCols !== 0) {
+      const l = pendingWheelLines;
+      const c = pendingWheelCols;
+      pendingWheelLines = 0;
+      pendingWheelCols = 0;
+      dispatchWheelScroll(l, c);
+    }
+  });
+}
+
+gridEl.addEventListener("wheel", (ev) => {
+  if (!workerReady) return;
+  ev.preventDefault();
+
+  let lines = 0;
+  let cols = 0;
+
+  if (ev.deltaMode === 1) { // DOM_DELTA_LINE
+    lines = Math.round(ev.deltaY);
+    cols = Math.round(ev.deltaX);
+  } else if (ev.deltaMode === 2) { // DOM_DELTA_PAGE
+    lines = Math.round(ev.deltaY * (rows || 25));
+    cols = Math.round(ev.deltaX * (cols || 80));
+  } else { // DOM_DELTA_PIXEL
+    lines = Math.round(ev.deltaY / 36);
+    if (lines === 0 && ev.deltaY !== 0) {
+      lines = ev.deltaY > 0 ? 1 : -1;
+    }
+    cols = Math.round(ev.deltaX / 18);
+    if (cols === 0 && ev.deltaX !== 0) {
+      cols = ev.deltaX > 0 ? 1 : -1;
+    }
+  }
+
+  dispatchWheelScroll(lines, cols);
+}, { passive: false });
 
 gridEl.addEventListener("keydown", (ev) => {
   if (isHelpOpen()) {
@@ -1384,7 +1694,18 @@ gridEl.addEventListener("keydown", (ev) => {
   const keys = translateKey(ev);
   if (!keys) return;
   ev.preventDefault();
-  enqueueInput(keys);
+  enqueueInput(keys, Boolean(ev.repeat));
+});
+
+gridEl.addEventListener("keyup", (ev) => {
+  const keys = translateKey(ev);
+  if (keys) clearRepeatQueue(keys);
+});
+
+gridEl.addEventListener("blur", () => {
+  for (let i = inputQueue.length - 1; i >= 0; i--) {
+    if (inputQueue[i].isRepeat) inputQueue.splice(i, 1);
+  }
 });
 
 // Resize Neovim linegrid when window changes size
@@ -1524,7 +1845,8 @@ function loadLevel(idx) {
   render();
 
   if (workerReady) {
-    setBufferCode(lvl.code);
+    const saved = localStorage.getItem(`sphere_route_code_${idx}`);
+    setBufferCode(saved !== null ? saved : lvl.code);
   }
 }
 

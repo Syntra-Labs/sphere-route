@@ -651,9 +651,10 @@ function sendDraw() {
   const snapshot = uiState.snapshot();
   postMessage({
     type: "draw-text",
-    lines: snapshot.lines,
     cells: snapshot.cells,
     cursor: snapshot.cursor,
+    cursorHlId: snapshot.cursorHlId,
+    cursorShape: snapshot.cursorShape,
     mode: snapshot.mode,
     hls: snapshot.hls,
   });
@@ -673,6 +674,7 @@ class UiState {
     this.cursorStyleEnabled = false;
     this.modeInfo = [];
     this.cursorHlId = 0;
+    this.cursorShape = "block";
     this.hls = new Map();
     this.hls.set(0, { foreground: null, background: null, reverse: false, blend: 0 });
   }
@@ -809,37 +811,45 @@ class UiState {
 
   defineHl(id, rgbAttr = {}) {
     const hlId = Number(id);
+    this.#hlsObj = null;
     this.hls.set(hlId, {
       foreground: toHex(rgbAttr.foreground),
       background: toHex(rgbAttr.background),
+      special: toHex(rgbAttr.special),
       reverse: Boolean(rgbAttr.reverse),
+      italic: Boolean(rgbAttr.italic),
+      bold: Boolean(rgbAttr.bold),
+      underline: Boolean(rgbAttr.underline || rgbAttr.undercurl),
+      strikethrough: Boolean(rgbAttr.strikethrough),
       blend: Number(rgbAttr.blend) || 0,
     });
   }
+
+  #hlsObj = null;
 
   snapshot() {
     const grid = this.grids.get(this.activeGrid) || this.grids.get(this.defaultGrid) || this.grids.values().next().value;
     if (!grid) {
       return {
-        lines: [""],
         cells: [[{ ch: " ", hl: 0 }]],
         cursor: { grid: this.defaultGrid, row: 0, col: 0 },
         mode: this.mode,
         cursorHlId: this.cursorHlId,
-        hls: Object.fromEntries(this.hls),
+        cursorShape: this.cursorShape,
+        hls: this.#hlsObj || (this.#hlsObj = Object.fromEntries(this.hls)),
       };
     }
 
     const row = clamp(Math.floor(this.cursor.row || 0), 0, grid.height - 1);
     const col = clamp(Math.floor(this.cursor.col || 0), 0, grid.width - 1);
-    const cells = grid.cells.map((r) => r.map((cell) => ({ ch: cell?.ch ?? " ", hl: cell?.hl ?? 0 })));
+    const cells = grid.cells.map((r) => r.slice());
     return {
-      lines: cells.map((r) => r.map((c) => c.ch || " ").join("")),
       cells,
       cursor: { grid: this.cursor.grid, row, col },
       mode: this.mode,
       cursorHlId: this.cursorHlId,
-      hls: Object.fromEntries(this.hls),
+      cursorShape: this.cursorShape,
+      hls: this.#hlsObj || (this.#hlsObj = Object.fromEntries(this.hls)),
     };
   }
 
@@ -860,13 +870,17 @@ class UiState {
   #makeCell(ch, hl) { return { ch, hl: Number.isFinite(Number(hl)) ? Number(hl) : 0 }; }
 
   #updateCursorHl() {
-    if (!this.cursorStyleEnabled || !Array.isArray(this.modeInfo)) {
+    if (!Array.isArray(this.modeInfo)) {
       this.cursorHlId = 0;
+      this.cursorShape = "block";
       return;
     }
     const info = this.modeInfo[this.modeIdx] || null;
     const attrId = info && info.attr_id !== undefined ? info.attr_id : 0;
     this.cursorHlId = Number.isFinite(Number(attrId)) ? Number(attrId) : 0;
+    if (info && typeof info.cursor_shape === "string") {
+      this.cursorShape = info.cursor_shape;
+    }
   }
 }
 
