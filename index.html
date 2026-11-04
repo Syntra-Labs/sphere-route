@@ -1042,7 +1042,7 @@ function primeNeovim() {
   sendRpc("nvim_command", ["set number"]);
   sendRpc("nvim_command", ["set background=light"]);
   sendRpc("nvim_command", ["set fillchars=eob:~"]);
-  sendRpc("nvim_command", ["set tabstop=4 shiftwidth=4 expandtab"]);
+  sendRpc("nvim_command", ["set tabstop=4 shiftwidth=4 softtabstop=4 expandtab autoindent smartindent"]);
 
   // Inverted / black-on-white highlights
   sendRpc("nvim_command", ["highlight Normal guibg=#ffffff guifg=#000000"]);
@@ -1063,6 +1063,21 @@ function primeNeovim() {
   // - Keymaps: <leader>r (<Space>r), <F5>, <C-CR>, <leader>m (<Space>m), <F1>, <leader>n, <leader>p
   // - Official built-in commands (:w, :help, :q, motions) are 100% UNTOUCHED
   const lua = `
+    if vim.uv and not vim.uv.os_uname() then
+      vim.uv.os_uname = function()
+        return { sysname = "Linux", release = "0.0", version = "WASI", machine = "wasm32" }
+      end
+    end
+
+    package.loaded["vim.snippet"] = {
+      active = function() return false end,
+      jump = function() end,
+      stop = function() end,
+      expand = function() end,
+    }
+    pcall(vim.keymap.del, {'i', 's'}, '<Tab>')
+    pcall(vim.keymap.del, {'i', 's'}, '<S-Tab>')
+
     local ui_chan = 1
     if ui_chan then
       vim.g.mapleader = " "
@@ -1152,6 +1167,10 @@ function setBufferCode(codeStr) {
     vim.bo[buf].readonly = false
     vim.bo[buf].buftype = ""
     vim.bo[buf].modified = false
+    vim.bo[buf].tabstop = 4
+    vim.bo[buf].shiftwidth = 4
+    vim.bo[buf].softtabstop = 4
+    vim.bo[buf].expandtab = true
     vim.api.nvim_win_set_cursor(0, {1, 0})
   `;
   sendRpc("nvim_exec_lua", [lua, [lines]]).then(() => {
